@@ -1,5 +1,8 @@
-use ring::digest::SHA256;
-use ring::signature::{UnparsedPublicKey, ECDSA_P256_SHA256_FIXED};
+use p256::{
+    ecdsa::{SigningKey, VerifyingKey},
+    NistP256,
+};
+use sha2::{Digest, Sha256};
 
 /// Verifies a WebAuthn response signature.
 ///
@@ -51,16 +54,16 @@ pub fn verify_webauthn_response(
     credential_public_key_der: &[u8],
 ) -> bool {
     // Compute client data hash
-    let client_data_hash = ring::digest::digest(&SHA256, client_data_json);
+    let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
     // Concatenate authenticator data and client data hash
-    let mut message = Vec::with_capacity(authenticator_data.len() + client_data_hash.as_ref().len());
+    let mut message =
+        Vec::with_capacity(authenticator_data.len() + client_data_hash.as_ref().len());
     message.extend_from_slice(authenticator_data);
     message.extend_from_slice(client_data_hash.as_ref());
 
     // Create an unparsed public key for signature verification.
-    let credential_public_key =
-        UnparsedPublicKey::new(&ECDSA_P256_SHA256_FIXED, credential_public_key_der);
+    let credential_public_key: VerifyingKey = credential_public_key_der; // Pending to include coset crate and use it to extract public key and then create a VerifyingKey using that public to verify the data, unless coset can verify
 
     // Verify the signature.
     credential_public_key.verify(&message, signature).is_ok()
