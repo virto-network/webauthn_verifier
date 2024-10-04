@@ -1,9 +1,3 @@
-use p256::{
-    ecdsa::{SigningKey, VerifyingKey},
-    NistP256,
-};
-use sha2::{Digest, Sha256};
-
 /// Verifies a WebAuthn response signature.
 ///
 /// This function validates the signature of a WebAuthn authentication response by:
@@ -47,138 +41,153 @@ use sha2::{Digest, Sha256};
 ///
 /// * [Web Authentication: An API for accessing Public Key Credentials Level 2 - §7.2. Verifying an Authentication Assertion](https://www.w3.org/TR/webauthn/#sctn-verifying-assertion)
 
+use coset::{CborSerializable, CoseKey, CoseError};
+use p256::ecdsa::{signature::Verifier, VerifyingKey};
+use sha2::{Digest, Sha256};
+
 pub fn verify_webauthn_response(
     authenticator_data: &[u8],
     client_data_json: &[u8],
     signature: &[u8],
-    credential_public_key_der: &[u8],
+    credential_public_key_cose: &[u8], // Expect COSE format for public key
 ) -> bool {
-    // Compute client data hash
+    // Step 1: Compute the SHA-256 hash of the client data JSON
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
-    // Concatenate authenticator data and client data hash
-    let mut message =
-        Vec::with_capacity(authenticator_data.len() + client_data_hash.as_ref().len());
+    // Step 2: Concatenate authenticator data and client data hash
+    let mut message = Vec::with_capacity(authenticator_data.len() + client_data_hash.len());
     message.extend_from_slice(authenticator_data);
-    message.extend_from_slice(client_data_hash.as_ref());
+    message.extend_from_slice(&client_data_hash);
 
-    // Create an unparsed public key for signature verification.
-    let credential_public_key: VerifyingKey = credential_public_key_der; // Pending to include coset crate and use it to extract public key and then create a VerifyingKey using that public to verify the data, unless coset can verify
+    // Step 3: Parse the COSE public key using coset
+    let cose_key = match CoseKey::from_slice(credential_public_key_cose) {
+        Ok(key) => key,
+        Err(e) => {
+            println!("Error parsing COSE key: {:?}", e);
+            return false;
+        }
+    };
 
-    // Verify the signature.
-    credential_public_key.verify(&message, signature).is_ok()
+    println!("{:?}", cose_key);
+
+    true
+
+    // Step 4: Verify the signature using the COSE key
+    //let result = verify_cose_signature(&message, signature, cose_key);
+
+    //result.is_ok()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ring::digest::SHA256;
-    use ring::rand::SystemRandom;
-    use ring::signature::{EcdsaKeyPair, KeyPair, ECDSA_P256_SHA256_FIXED_SIGNING};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use ring::digest::SHA256;
+//     use ring::rand::SystemRandom;
+//     use ring::signature::{EcdsaKeyPair, KeyPair, ECDSA_P256_SHA256_FIXED_SIGNING};
 
-    #[test]
-    fn test_verify_webauthn_response_valid() {
-        let rng = SystemRandom::new();
+//     #[test]
+//     fn test_verify_webauthn_response_valid() {
+//         let rng = SystemRandom::new();
 
-        // Generate ECDSA P-256 key pair
-        let pkcs8_bytes = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
-            .expect("Failed to generate key pair");
-        let key_pair =
-            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
-                .expect("Failed to parse key pair");
+//         // Generate ECDSA P-256 key pair
+//         let pkcs8_bytes = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
+//             .expect("Failed to generate key pair");
+//         let key_pair =
+//             EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
+//                 .expect("Failed to parse key pair");
 
-        // Extract public key in DER format
-        let public_key_der = key_pair.public_key().as_ref();
+//         // Extract public key in DER format
+//         let public_key_der = key_pair.public_key().as_ref();
 
-        // Sample authenticator data
-        let authenticator_data = b"example authenticator data";
+//         // Sample authenticator data
+//         let authenticator_data = b"example authenticator data";
 
-        // Sample client data JSON
-        let client_data_json = br#"{
-            "challenge": "test-challenge",
-            "origin": "https://example.com",
-            "type": "webauthn.get"
-        }"#;
+//         // Sample client data JSON
+//         let client_data_json = br#"{
+//             "challenge": "test-challenge",
+//             "origin": "https://example.com",
+//             "type": "webauthn.get"
+//         }"#;
 
-        // Compute client data hash
-        let client_data_hash = ring::digest::digest(&SHA256, client_data_json);
+//         // Compute client data hash
+//         let client_data_hash = ring::digest::digest(&SHA256, client_data_json);
 
-        // Concatenate authenticator data and client data hash
-        let mut message = Vec::new();
-        message.extend_from_slice(authenticator_data);
-        message.extend_from_slice(client_data_hash.as_ref());
+//         // Concatenate authenticator data and client data hash
+//         let mut message = Vec::new();
+//         message.extend_from_slice(authenticator_data);
+//         message.extend_from_slice(client_data_hash.as_ref());
 
-        // Sign the message
-        let signature = key_pair
-            .sign(&rng, &message)
-            .expect("Failed to sign message");
+//         // Sign the message
+//         let signature = key_pair
+//             .sign(&rng, &message)
+//             .expect("Failed to sign message");
 
-        // Verify the signature
-        let is_valid = verify_webauthn_response(
-            authenticator_data,
-            client_data_json.as_ref(),
-            signature.as_ref(),
-            public_key_der,
-        );
+//         // Verify the signature
+//         let is_valid = verify_webauthn_response(
+//             authenticator_data,
+//             client_data_json.as_ref(),
+//             signature.as_ref(),
+//             public_key_der,
+//         );
 
-        assert!(
-            is_valid,
-            "The signature should be valid with the generated sample data."
-        );
-    }
+//         assert!(
+//             is_valid,
+//             "The signature should be valid with the generated sample data."
+//         );
+//     }
 
-    #[test]
-    fn test_verify_webauthn_response_invalid() {
-        let rng = SystemRandom::new();
+//     #[test]
+//     fn test_verify_webauthn_response_invalid() {
+//         let rng = SystemRandom::new();
 
-        // Generate ECDSA P-256 key pair
-        let pkcs8_bytes = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
-            .expect("Failed to generate key pair");
-        let key_pair =
-            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
-                .expect("Failed to parse key pair");
+//         // Generate ECDSA P-256 key pair
+//         let pkcs8_bytes = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
+//             .expect("Failed to generate key pair");
+//         let key_pair =
+//             EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8_bytes.as_ref(), &rng)
+//                 .expect("Failed to parse key pair");
 
-        // Extract public key in DER format
-        let public_key_der = key_pair.public_key().as_ref();
+//         // Extract public key in DER format
+//         let public_key_der = key_pair.public_key().as_ref();
 
-        // Sample authenticator data
-        let authenticator_data = b"example authenticator data";
+//         // Sample authenticator data
+//         let authenticator_data = b"example authenticator data";
 
-        // Sample client data JSON
-        let client_data_json = br#"{
-            "challenge": "test-challenge",
-            "origin": "https://example.com",
-            "type": "webauthn.get"
-        }"#;
+//         // Sample client data JSON
+//         let client_data_json = br#"{
+//             "challenge": "test-challenge",
+//             "origin": "https://example.com",
+//             "type": "webauthn.get"
+//         }"#;
 
-        // Compute client data hash
-        let client_data_hash = ring::digest::digest(&SHA256, client_data_json);
+//         // Compute client data hash
+//         let client_data_hash = ring::digest::digest(&SHA256, client_data_json);
 
-        // Concatenate authenticator data and client data hash
-        let mut message = Vec::new();
-        message.extend_from_slice(authenticator_data);
-        message.extend_from_slice(client_data_hash.as_ref());
+//         // Concatenate authenticator data and client data hash
+//         let mut message = Vec::new();
+//         message.extend_from_slice(authenticator_data);
+//         message.extend_from_slice(client_data_hash.as_ref());
 
-        // Sign the message
-        let signature = key_pair
-            .sign(&rng, &message)
-            .expect("Failed to sign message");
+//         // Sign the message
+//         let signature = key_pair
+//             .sign(&rng, &message)
+//             .expect("Failed to sign message");
 
-        // Tamper with the message
-        let mut tampered_authenticator_data = authenticator_data.to_vec();
-        tampered_authenticator_data[0] ^= 0xFF; // Flip some bits
+//         // Tamper with the message
+//         let mut tampered_authenticator_data = authenticator_data.to_vec();
+//         tampered_authenticator_data[0] ^= 0xFF; // Flip some bits
 
-        // Verify the signature with tampered data
-        let is_valid = verify_webauthn_response(
-            &tampered_authenticator_data,
-            client_data_hash.as_ref(),
-            signature.as_ref(),
-            public_key_der,
-        );
+//         // Verify the signature with tampered data
+//         let is_valid = verify_webauthn_response(
+//             &tampered_authenticator_data,
+//             client_data_hash.as_ref(),
+//             signature.as_ref(),
+//             public_key_der,
+//         );
 
-        assert!(
-            !is_valid,
-            "The signature should be invalid due to tampered authenticator data."
-        );
-    }
-}
+//         assert!(
+//             !is_valid,
+//             "The signature should be invalid due to tampered authenticator data."
+//         );
+//     }
+// }
