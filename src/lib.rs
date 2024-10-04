@@ -40,17 +40,39 @@
 /// # References
 ///
 /// * [Web Authentication: An API for accessing Public Key Credentials Level 2 - §7.2. Verifying an Authentication Assertion](https://www.w3.org/TR/webauthn/#sctn-verifying-assertion)
-
-use coset::{CborSerializable, CoseKey, CoseError};
-use p256::ecdsa::{signature::Verifier, VerifyingKey};
+///
+use coset::{CborSerializable, CoseError, CoseKey};
+use p256::ecdsa::{signature::Verifier};
 use sha2::{Digest, Sha256};
+
+#[derive(Copy, Clone)]
+struct FakeSigner {}
+
+// Use a fake signer/verifier (to avoid pulling in lots of dependencies).
+impl FakeSigner {
+    fn sign(&self, data: &[u8]) -> Vec<u8> {
+        data.to_vec()
+    }
+
+    fn verify(&self, sig: &[u8], data: &[u8]) -> Result<(), String> {
+        if sig != self.sign(data) {
+            Err("failed to verify".to_owned())
+        } else {
+            Ok(())
+        }
+    }
+}
 
 pub fn verify_webauthn_response(
     authenticator_data: &[u8],
     client_data_json: &[u8],
     signature: &[u8],
-    credential_public_key_cose: &[u8], // Expect COSE format for public key
-) -> bool {
+    credential_public_key_cbor: &[u8],
+) -> Result<bool, CoseError> {
+    // Build a fake signer/verifier (to avoid pulling in lots of dependencies).
+    let signer = FakeSigner {};
+    let verifier = signer;
+
     // Step 1: Compute the SHA-256 hash of the client data JSON
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
@@ -60,22 +82,19 @@ pub fn verify_webauthn_response(
     message.extend_from_slice(&client_data_hash);
 
     // Step 3: Parse the COSE public key using coset
-    let cose_key = match CoseKey::from_slice(credential_public_key_cose) {
-        Ok(key) => key,
-        Err(e) => {
-            println!("Error parsing COSE key: {:?}", e);
-            return false;
-        }
-    };
+    let cose_key = CoseKey::from_slice(credential_public_key_cbor)?;
 
-    println!("{:?}", cose_key);
-
-    true
+    println!("4: {:?}", cose_key);
 
     // Step 4: Verify the signature using the COSE key
-    //let result = verify_cose_signature(&message, signature, cose_key);
+    // At the receiving end, deserialize the bytes back to a `CoseSign1` object.
+    let sign1 = coset::CoseSign1::from_slice(&signature)?;
 
-    //result.is_ok()
+    // Check the signature, which needs to have the same `authenticator_data` provided.
+    let result = sign1.verify_signature(authenticator_data, |sig, data| verifier.verify(sig, data));
+    println!("Signature verified: {:?}.", result);
+
+    Ok(result.is_ok())
 }
 
 // #[cfg(test)]

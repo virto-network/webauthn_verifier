@@ -1,5 +1,5 @@
-use ciborium::{cbor, value::Value};
-use coset::{iana, AsCborValue, CborSerializable, CoseError, CoseKey, CoseKeyBuilder};
+use coset::{
+    iana, CborSerializable, CoseError};
 use webauthn_verifier;
 
 /// Random number generator utilities used for tests
@@ -17,6 +17,16 @@ pub fn random_vec(len: usize) -> Vec<u8> {
     data
 }
 
+#[derive(Copy, Clone)]
+struct FakeSigner {}
+
+/// Use a fake signer/verifier (to avoid pulling in lots of dependencies).
+impl FakeSigner {
+    fn sign(&self, data: &[u8]) -> Vec<u8> {
+        data.to_vec()
+    }
+}
+
 fn main() -> Result<(), CoseError> {
     let authenticator_data = b"example authenticator data";
     let client_data_json = br#"{
@@ -24,7 +34,28 @@ fn main() -> Result<(), CoseError> {
         "origin": "https://example.com",
         "type": "webauthn.get"
     }"#;
-    let signature = b"signature";
+
+    // Build a fake signer/verifier (to avoid pulling in lots of dependencies).
+    let signer = FakeSigner {};
+
+    // Inputs.
+    let pt = b"This is the content";
+
+    // Build a `CoseSign1` object.
+    let protected = coset::HeaderBuilder::new()
+        .algorithm(iana::Algorithm::ES256)
+        .key_id(b"11".to_vec())
+        .build();
+    let sign1 = coset::CoseSign1Builder::new()
+        .protected(protected)
+        .payload(pt.to_vec())
+        .create_signature(authenticator_data, |pt| signer.sign(pt))
+        .build();
+
+    // Serialize to bytes.
+    let sign1_data = sign1.to_vec()?;
+
+    println!("1: {:?}", sign1_data);
 
     let key = coset::CoseKeyBuilder::new_ec2_pub_key(
         coset::iana::EllipticCurve::P_256,
@@ -33,22 +64,14 @@ fn main() -> Result<(), CoseError> {
     )
     .build();
 
-    println!("{}", format!("{:?}", key.clone()));
+    let key_data = key.to_vec()?;
 
-    let key_bytes = key.to_vec().unwrap();
-
-    println!("1: {:?}\n", key_bytes);
-
-    let cose_key = CoseKey::from_slice(&key_bytes)?;
-
-    println!("{}", format!("{:?}", cose_key));
-
-    // webauthn_verifier::verify_webauthn_response(
-    //     authenticator_data,
-    //     client_data_json,
-    //     signature,
-    //     signature,
-    // );
+    webauthn_verifier::verify_webauthn_response(
+        authenticator_data,
+        client_data_json,
+        sign1_data.as_slice(),
+        key_data.as_slice(),
+    )?;
 
     Ok(())
 }
