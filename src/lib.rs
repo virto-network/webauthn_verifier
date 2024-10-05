@@ -55,7 +55,8 @@ use passkey::authenticator;
 pub fn verify_webauthn_response(
     authenticator_data: &[u8],
     client_data_json: &[u8],
-    signature: &[u8],
+    //signature_cbor: &[u8],
+    signature_der: &[u8],
     credential_public_key_cbor: &[u8],
 ) -> bool {
     // Step 1: Compute the SHA-256 hash of the client data JSON
@@ -76,10 +77,9 @@ pub fn verify_webauthn_response(
     let verifying_key = VerifyingKey::from(public_key);
 
     // Step 4: Parse the COSE signature, convert it to DER format, and parse it
-    let signature_cose =
-        coset::CoseSign1::from_slice(signature).expect("Failed to parse COSE signature");
-    // TODO: convert signature to der format
-    let signature_der = signature_der_from_cose_signature(&signature_cose);
+    // let signature_cose =
+    //     coset::CoseSign1::from_slice(signature_cbor).expect("Failed to parse COSE signature");
+    // let signature_der = signature_der_from_cose_signature(&signature_cose);
     let signature = Signature::from_der(&signature_der).expect("Failed to parse signature DER");
 
     //print all public keys
@@ -88,7 +88,7 @@ pub fn verify_webauthn_response(
     println!("Verifying Key: {:?}", verifying_key);
 
     //print all signatures
-    println!("Signature COSE: {:?}", signature_cose);
+    // println!("Signature COSE: {:?}", signature_cose);
     println!("Signature DER: {:?}", signature_der);
     println!("Signature: {:?}", signature);
 
@@ -96,6 +96,8 @@ pub fn verify_webauthn_response(
     verifying_key
         .verify(&message, &signature)
         .expect("Signature verification failed");
+
+    println!("Signature verification succeeded");
 
     true
 }

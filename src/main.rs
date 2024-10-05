@@ -1,20 +1,7 @@
 use coset::{iana, CborSerializable};
 use p256::ecdsa::SigningKey;
-
-/// Random number generator utilities used for tests
-use rand::{rngs::OsRng, RngCore};
-
-fn random_fill(buffer: &mut [u8]) {
-    let mut random = rand::thread_rng();
-    random.fill_bytes(buffer);
-}
-
-/// Generate random data of specific length.
-pub fn random_vec(len: usize) -> Vec<u8> {
-    let mut data = vec![0u8; len];
-    random_fill(&mut data);
-    data
-}
+use rand::rngs::OsRng;
+use sha2::{Digest, Sha256};
 
 fn main() {
     let authenticator_data = b"example authenticator data";
@@ -55,30 +42,38 @@ fn main() {
         .to_vec()
         .expect("Failed to serialize COSE key");
 
-    // Inputs.
-    let pt = b"This is the content";
+    // Compute client_data_hash and message
+    let client_data_hash = Sha256::digest(client_data_json);
+    let mut message = Vec::with_capacity(authenticator_data.len() + client_data_hash.len());
+    message.extend_from_slice(authenticator_data);
+    message.extend_from_slice(&client_data_hash);
 
-    // Build a `CoseSign1` object.
-    let protected = coset::HeaderBuilder::new()
-        .algorithm(iana::Algorithm::ES256)
-        .key_id(b"11".to_vec())
-        .build();
-    let sign1 = coset::CoseSign1Builder::new()
-        .protected(protected)
-        .payload(pt.to_vec())
-        .create_signature(authenticator_data, |pt| {
-            let (signature, _recovery_id) = private_key.sign_recoverable(pt).unwrap();
-            signature.to_vec()
-        })
-        .build();
+    // // Build a `CoseSign1` object.
+    // let protected = coset::HeaderBuilder::new()
+    //     .algorithm(iana::Algorithm::ES256)
+    //     .build();
 
-    // Serialize the `CoseSign1` object.
-    let sign1_data = sign1.to_vec().expect("Failed to serialize COSE Sign1");
+    // let sign1 = coset::CoseSign1Builder::new()
+    //     .protected(protected)
+    //     .payload(message)
+    //     .create_signature(&[], |to_be_signed| {
+    //         let (signature, _recovery_id) = private_key.sign_recoverable(to_be_signed).unwrap();
+    //         signature.to_vec()
+    //     })
+    //     .build();
+
+    // // Serialize the `CoseSign1` object.
+    // let sign1_data = sign1.to_vec().expect("Failed to serialize COSE Sign1");
+
+    let (signature, _recovery_id) = private_key.sign_recoverable(&message).unwrap();
+
+    let signature_der = signature.to_der();
 
     webauthn_verifier::verify_webauthn_response(
         authenticator_data,
         client_data_json,
-        sign1_data.as_slice(),
+        //sign1_data.as_slice(),
+        signature_der.as_bytes(),
         public_key_data.as_slice(),
     );
 }
