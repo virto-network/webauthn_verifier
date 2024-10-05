@@ -1,9 +1,5 @@
-use coset::{iana, CborSerializable, CoseError};
-use p256::{
-    ecdsa::{signature::Signer, SigningKey},
-    PublicKey,
-};
-use webauthn_verifier;
+use coset::{iana, CborSerializable};
+use p256::ecdsa::SigningKey;
 
 /// Random number generator utilities used for tests
 use rand::{rngs::OsRng, RngCore};
@@ -55,7 +51,9 @@ fn main() {
             .build();
 
     // Step 4: Serialize the COSE key pair
-    let public_key_data = public_key_cose.to_vec().expect("Failed to serialize COSE key");
+    let public_key_data = public_key_cose
+        .to_vec()
+        .expect("Failed to serialize COSE key");
 
     // Inputs.
     let pt = b"This is the content";

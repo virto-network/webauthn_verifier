@@ -43,7 +43,7 @@
 ///
 use coset::{CborSerializable, CoseKey};
 use p256::ecdsa::VerifyingKey;
-use p256::ecdsa::{signature::Verifier, Signature, SigningKey};
+use p256::ecdsa::{signature::Verifier, Signature};
 use p256::elliptic_curve::PublicKey;
 use p256::pkcs8::DecodePublicKey;
 use p256::NistP256;
@@ -76,24 +76,26 @@ pub fn verify_webauthn_response(
 
     // Step 4: Verify the signature using the COSE key
     // At the receiving end, deserialize the bytes back to a `CoseSign1` object.
-    let sign1 = coset::CoseSign1::from_slice(&signature).expect("Failed to parse COSE signature");
+    let signature_cose =
+        coset::CoseSign1::from_slice(signature).expect("Failed to parse COSE signature");
+    // TODO: convert signature to der format
+    let signature_der = signature_der_from_cose_signature(&signature_cose);
+    let signature = Signature::from_der(&signature_der).expect("Failed to parse signature DER");
 
     //print the public key and signature
     println!("Public Key: {:?}", verifying_key);
     println!("Signature: {:?}", signature);
 
-    // // Check the signature, which needs to have the same `authenticator_data` provided.
-    // let result = sign1.verify_signature(authenticator_data, |sig, data| {
-    //     verifying_key
-    //         .verify(sig, data)
-    //         .expect("Signature verification failed")
-    // });
+    // Step 5: Verify the signature
+    verifying_key
+        .verify(&message, &signature)
+        .expect("Signature verification failed");
 
-    let result = verifying_key.verify(&message, &Signature::from(sign1.signature));
+    true
+}
 
-    println!("Signature verified: {:?}.", result);
-
-    result.is_ok()
+pub fn signature_der_from_cose_signature(signature: &coset::CoseSign1) -> Vec<u8> {
+    todo!()
 }
 
 // #[cfg(test)]
