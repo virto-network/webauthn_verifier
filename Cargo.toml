@@ -13,6 +13,7 @@ coset = "0.3.8"
 hex = "0.4.3"
 rand = "0.8.5"
 ciborium = "0.2.2"
+passkey = "0.3.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.15", features = ["js"] }

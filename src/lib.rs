@@ -41,38 +41,22 @@
 ///
 /// * [Web Authentication: An API for accessing Public Key Credentials Level 2 - §7.2. Verifying an Authentication Assertion](https://www.w3.org/TR/webauthn/#sctn-verifying-assertion)
 ///
-use coset::{CborSerializable, CoseError, CoseKey};
-use p256::ecdsa::{signature::Verifier};
+use coset::{CborSerializable, CoseKey};
+use p256::ecdsa::VerifyingKey;
+use p256::ecdsa::{signature::Verifier, Signature, SigningKey};
+use p256::elliptic_curve::PublicKey;
+use p256::pkcs8::DecodePublicKey;
+use p256::NistP256;
 use sha2::{Digest, Sha256};
 
-#[derive(Copy, Clone)]
-struct FakeSigner {}
-
-// Use a fake signer/verifier (to avoid pulling in lots of dependencies).
-impl FakeSigner {
-    fn sign(&self, data: &[u8]) -> Vec<u8> {
-        data.to_vec()
-    }
-
-    fn verify(&self, sig: &[u8], data: &[u8]) -> Result<(), String> {
-        if sig != self.sign(data) {
-            Err("failed to verify".to_owned())
-        } else {
-            Ok(())
-        }
-    }
-}
+use passkey::authenticator;
 
 pub fn verify_webauthn_response(
     authenticator_data: &[u8],
     client_data_json: &[u8],
     signature: &[u8],
     credential_public_key_cbor: &[u8],
-) -> Result<bool, CoseError> {
-    // Build a fake signer/verifier (to avoid pulling in lots of dependencies).
-    let signer = FakeSigner {};
-    let verifier = signer;
-
+) -> bool {
     // Step 1: Compute the SHA-256 hash of the client data JSON
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
@@ -82,19 +66,34 @@ pub fn verify_webauthn_response(
     message.extend_from_slice(&client_data_hash);
 
     // Step 3: Parse the COSE public key using coset
-    let cose_key = CoseKey::from_slice(credential_public_key_cbor)?;
-
-    println!("4: {:?}", cose_key);
+    let public_key_cose =
+        CoseKey::from_slice(credential_public_key_cbor).expect("Failed to parse COSE public key");
+    let public_key_der = authenticator::public_key_der_from_cose_key(&public_key_cose)
+        .expect("Failed to convert COSE key to DER format");
+    let public_key = PublicKey::<NistP256>::from_public_key_der(&public_key_der)
+        .expect("Failed to parse public key DER");
+    let verifying_key = VerifyingKey::from(public_key);
 
     // Step 4: Verify the signature using the COSE key
     // At the receiving end, deserialize the bytes back to a `CoseSign1` object.
-    let sign1 = coset::CoseSign1::from_slice(&signature)?;
+    let sign1 = coset::CoseSign1::from_slice(&signature).expect("Failed to parse COSE signature");
 
-    // Check the signature, which needs to have the same `authenticator_data` provided.
-    let result = sign1.verify_signature(authenticator_data, |sig, data| verifier.verify(sig, data));
+    //print the public key and signature
+    println!("Public Key: {:?}", verifying_key);
+    println!("Signature: {:?}", signature);
+
+    // // Check the signature, which needs to have the same `authenticator_data` provided.
+    // let result = sign1.verify_signature(authenticator_data, |sig, data| {
+    //     verifying_key
+    //         .verify(sig, data)
+    //         .expect("Signature verification failed")
+    // });
+
+    let result = verifying_key.verify(&message, &Signature::from(sign1.signature));
+
     println!("Signature verified: {:?}.", result);
 
-    Ok(result.is_ok())
+    result.is_ok()
 }
 
 // #[cfg(test)]
