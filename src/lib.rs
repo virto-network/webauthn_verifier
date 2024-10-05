@@ -43,9 +43,10 @@
 ///
 use coset::{CborSerializable, CoseKey};
 use p256::ecdsa::VerifyingKey;
-use p256::ecdsa::{signature::Verifier, Signature};
+use p256::ecdsa::{signature::SignatureEncoding, signature::Verifier, Signature};
 use p256::elliptic_curve::PublicKey;
 use p256::pkcs8::DecodePublicKey;
+use p256::FieldBytes;
 use p256::NistP256;
 use sha2::{Digest, Sha256};
 
@@ -81,8 +82,14 @@ pub fn verify_webauthn_response(
     let signature_der = signature_der_from_cose_signature(&signature_cose);
     let signature = Signature::from_der(&signature_der).expect("Failed to parse signature DER");
 
-    //print the public key and signature
-    println!("Public Key: {:?}", verifying_key);
+    //print all public keys
+    println!("Public Key COSE: {:?}", public_key_cose);
+    println!("Public Key DER: {:?}", public_key_der);
+    println!("Verifying Key: {:?}", verifying_key);
+
+    //print all signatures
+    println!("Signature COSE: {:?}", signature_cose);
+    println!("Signature DER: {:?}", signature_der);
     println!("Signature: {:?}", signature);
 
     // Step 5: Verify the signature
@@ -93,8 +100,29 @@ pub fn verify_webauthn_response(
     true
 }
 
-pub fn signature_der_from_cose_signature(signature: &coset::CoseSign1) -> Vec<u8> {
-    todo!()
+pub fn signature_der_from_cose_signature(signature_cose: &coset::CoseSign1) -> Vec<u8> {
+    // Assuming the signature is for P-256 (ECDSA), which has 64-byte signatures.
+    let signature_bytes = signature_cose.signature.as_slice();
+    assert_eq!(
+        signature_bytes.len(),
+        64,
+        "Expected a 64-byte ECDSA signature"
+    );
+
+    // Split the 64-byte signature into r and s (each 32 bytes).
+    let (r_bytes, s_bytes) = signature_bytes.split_at(32);
+
+    // Convert the byte slices into `FieldBytes<NistP256>`, which is the expected input type.
+    let r_field_bytes = FieldBytes::from_slice(r_bytes);
+    let s_field_bytes = FieldBytes::from_slice(s_bytes);
+
+    // Create the ECDSA signature from r and s values.
+    let signature = Signature::from_scalars(*r_field_bytes, *s_field_bytes)
+        .expect("Failed to create ECDSA signature from r and s");
+
+    let signature_der = signature.to_der();
+
+    signature_der.to_vec()
 }
 
 // #[cfg(test)]
