@@ -1,4 +1,4 @@
-use coset::{iana, CborSerializable};
+use coset::CborSerializable;
 use p256::ecdsa::SigningKey;
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
@@ -22,23 +22,13 @@ fn main() {
     let y = public_key.y().unwrap().as_slice().to_vec();
 
     // Step 3: Construct the COSE key pair
-
-    let _private_key_cose = coset::CoseKeyBuilder::new_ec2_priv_key(
-        coset::iana::EllipticCurve::P_256,
-        x.clone(),
-        y.clone(),
-        private_key.to_bytes().to_vec(),
-    )
-    .algorithm(coset::iana::Algorithm::ES256)
-    .build();
-
     let public_key_cose =
         coset::CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x, y)
             .algorithm(coset::iana::Algorithm::ES256)
             .build();
 
     // Step 4: Serialize the COSE key pair
-    let public_key_data = public_key_cose
+    let public_key_cbor = public_key_cose
         .to_vec()
         .expect("Failed to serialize COSE key");
 
@@ -48,32 +38,17 @@ fn main() {
     message.extend_from_slice(authenticator_data);
     message.extend_from_slice(&client_data_hash);
 
-    // // Build a `CoseSign1` object.
-    // let protected = coset::HeaderBuilder::new()
-    //     .algorithm(iana::Algorithm::ES256)
-    //     .build();
-
-    // let sign1 = coset::CoseSign1Builder::new()
-    //     .protected(protected)
-    //     .payload(message)
-    //     .create_signature(&[], |to_be_signed| {
-    //         let (signature, _recovery_id) = private_key.sign_recoverable(to_be_signed).unwrap();
-    //         signature.to_vec()
-    //     })
-    //     .build();
-
-    // // Serialize the `CoseSign1` object.
-    // let sign1_data = sign1.to_vec().expect("Failed to serialize COSE Sign1");
-
+    // Sign the message to get the signature in DER format
+    // ? Should this be in COSE format? I couldn't get coset::CoseSign1 to work
+    // ? https://github.com/google/coset/blob/main/examples/signature.rs
+    // ? Check the above link for an example of how to sign a message in COSE format
     let (signature, _recovery_id) = private_key.sign_recoverable(&message).unwrap();
-
     let signature_der = signature.to_der();
 
     webauthn_verifier::verify_webauthn_response(
         authenticator_data,
         client_data_json,
-        //sign1_data.as_slice(),
         signature_der.as_bytes(),
-        public_key_data.as_slice(),
+        public_key_cbor.as_slice(),
     );
 }
