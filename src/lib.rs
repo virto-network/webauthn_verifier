@@ -65,7 +65,7 @@ pub fn verify_webauthn_response(
     message.extend_from_slice(authenticator_data);
     message.extend_from_slice(&client_data_hash);
 
-    // Step 3: Parse the COSE public key using coset
+    // Step 3: Parse the COSE public key, convert it to DER format, and parse it
     let public_key_cose =
         CoseKey::from_slice(credential_public_key_cbor).expect("Failed to parse COSE public key");
     let public_key_der = authenticator::public_key_der_from_cose_key(&public_key_cose)
@@ -74,8 +74,7 @@ pub fn verify_webauthn_response(
         .expect("Failed to parse public key DER");
     let verifying_key = VerifyingKey::from(public_key);
 
-    // Step 4: Verify the signature using the COSE key
-    // At the receiving end, deserialize the bytes back to a `CoseSign1` object.
+    // Step 4: Parse the COSE signature, convert it to DER format, and parse it
     let signature_cose =
         coset::CoseSign1::from_slice(signature).expect("Failed to parse COSE signature");
     // TODO: convert signature to der format
