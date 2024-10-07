@@ -128,6 +128,40 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     #[test]
+    fn test_verify_registration_webauthn_response_with_replicated_data() {
+        let authenticator_data = b"dKbqkhPJnC90siSSsyDPQCYqlMGpUKA5fyklC2CEHvBFAAAAAQAAAAAAAAAAAAAAAAAAAAAAIK1-GLJEntO1EGz7VIEmTzktMEcucNozCVY5w-r1zzbKpQECAyYgASFYIME615EvcyE68YdSKzkIxhy0DGN1da1_WvI1AEeagOHoIlggu6X6IegkSRbcyLzZbFg3rzMjBwa4C3DfMlStM9rf4Po";
+        let client_data_json = b"eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiRUFVdHF5clRadUpKVEx3emRVOVRBaDltYjZnTU02cldXRUVGV0FkMTJvV0FBS216Mk4zYWdKLW1VUm0zWk1yQkMxYklWNnFLTTNzMGtLLWxrYjhJalEiLCJvcmlnaW4iOiJodHRwczovL3dlYmF1dGhuLmlvIiwiY3Jvc3NPcmlnaW4iOmZhbHNlLCJvdGhlcl9rZXlzX2Nhbl9iZV9hZGRlZF9oZXJlIjoiZG8gbm90IGNvbXBhcmUgY2xpZW50RGF0YUpTT04gYWdhaW5zdCBhIHRlbXBsYXRlLiBTZWUgaHR0cHM6Ly9nb28uZ2wveWFiUGV4In0";
+
+        // Step 4: Serialize the COSE key pair
+        let public_key_cbor = b"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwTrXkS9zITrxh1IrOQjGHLQMY3V1rX9a8jUAR5qA4ei7pfoh6CRJFtzIvNlsWDevMyMHBrgLcN8yVK0z2t_g-g";
+
+        // // Step 5: Compute client_data_hash and message
+        // let client_data_hash = Sha256::digest(client_data_json);
+        // let mut message = Vec::with_capacity(authenticator_data.len() + client_data_hash.len());
+        // message.extend_from_slice(authenticator_data);
+        // message.extend_from_slice(&client_data_hash);
+
+        // Step 6: Sign the message to get the signature in DER format
+        // ? Should this be in COSE format? I couldn't get coset::CoseSign1 to work
+        // ? https://github.com/google/coset/blob/main/examples/signature.rs
+        // ? Check the above link for an example of how to sign a message in COSE format
+        let signature_der = b"o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikdKbqkhPJnC90siSSsyDPQCYqlMGpUKA5fyklC2CEHvBFAAAAAQAAAAAAAAAAAAAAAAAAAAAAIK1-GLJEntO1EGz7VIEmTzktMEcucNozCVY5w-r1zzbKpQECAyYgASFYIME615EvcyE68YdSKzkIxhy0DGN1da1_WvI1AEeagOHoIlggu6X6IegkSRbcyLzZbFg3rzMjBwa4C3DfMlStM9rf4Po";
+
+        // Step 7: Verify the signature
+        let is_valid = verify_webauthn_response(
+            authenticator_data,
+            client_data_json,
+            signature_der,
+            public_key_cbor,
+        );
+
+        assert!(
+            is_valid,
+            "The signature should be valid with the generated sample data."
+        );
+    }
+
+    #[test]
     fn test_verify_webauthn_response_with_generated_data() {
         let authenticator_data = b"example authenticator data";
         let client_data_json = br#"{
