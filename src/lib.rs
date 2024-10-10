@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 //! Verifies a WebAuthn response signature.
 //!
 //! This function validates the signature of a WebAuthn authentication response by:
