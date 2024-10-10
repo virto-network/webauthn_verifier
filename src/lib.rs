@@ -1,3 +1,4 @@
+#![no_std]
 //! Verifies a WebAuthn response signature.
 //!
 //! This function validates the signature of a WebAuthn authentication response by:
@@ -55,6 +56,23 @@ use p256::{
 use passkey::authenticator;
 use sha2::{Digest, Sha256};
 
+fn concatenate_data(
+    authenticator_data: &[u8],
+    client_data_hash: &[u8],
+) -> Result<[u8; 512], &'static str> {
+    let total_len = authenticator_data.len() + client_data_hash.len();
+
+    if total_len > 512 {
+        return Err("Buffer overflow");
+    }
+
+    let mut message = [0u8; 512];
+    message[..authenticator_data.len()].copy_from_slice(authenticator_data);
+    message[authenticator_data.len()..total_len].copy_from_slice(client_data_hash);
+
+    Ok(message)
+}
+
 pub fn verify_webauthn_response(
     authenticator_data: &[u8],
     client_data_json: &[u8],
@@ -65,31 +83,35 @@ pub fn verify_webauthn_response(
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
     // Step 2: Concatenate authenticator data and client data hash
-    let mut message = Vec::with_capacity(authenticator_data.len() + client_data_hash.len());
-    message.extend_from_slice(authenticator_data);
-    message.extend_from_slice(&client_data_hash);
+    let message = match concatenate_data(authenticator_data, &client_data_hash) {
+        Ok(msg) => msg,
+        Err(_e) => {
+            // eprintln!("Failed to concatenate data: {:?}", e);
+            return false;
+        }
+    };
 
     // Step 3: Parse the COSE public key, convert it to DER format, and parse it
     let public_key_cose = match CoseKey::from_slice(credential_public_key_cbor) {
         Ok(key) => key,
-        Err(e) => {
-            eprintln!("Failed to parse COSE public key: {:?}", e);
+        Err(_e) => {
+            // eprintln!("Failed to parse COSE public key: {:?}", e);
             return false;
         }
     };
 
     let public_key_der = match authenticator::public_key_der_from_cose_key(&public_key_cose) {
         Ok(der) => der,
-        Err(e) => {
-            eprintln!("Failed to convert COSE key to DER format: {:?}", e);
+        Err(_e) => {
+            // eprintln!("Failed to convert COSE key to DER format: {:?}", e);
             return false;
         }
     };
 
     let public_key = match PublicKey::<NistP256>::from_public_key_der(&public_key_der) {
         Ok(key) => key,
-        Err(e) => {
-            eprintln!("Failed to parse public key DER: {:?}", e);
+        Err(_e) => {
+            // eprintln!("Failed to parse public key DER: {:?}", e);
             return false;
         }
     };
@@ -99,19 +121,19 @@ pub fn verify_webauthn_response(
     // Step 4: Parse the DER signature
     let signature = match Signature::from_der(signature_der) {
         Ok(sig) => sig,
-        Err(e) => {
-            eprintln!("Failed to parse signature DER: {:?}", e);
+        Err(_e) => {
+            // eprintln!("Failed to parse signature DER: {:?}", e);
             return false;
         }
     };
 
     // Step 5: Verify the signature
     if verifying_key.verify(&message, &signature).is_err() {
-        eprintln!("Signature verification failed");
+        // eprintln!("Signature verification failed");
         return false;
     }
 
-    println!("Signature verification succeeded");
+    // println!("Signature verification succeeded");
 
     true
 }
