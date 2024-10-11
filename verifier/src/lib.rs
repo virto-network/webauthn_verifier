@@ -47,96 +47,47 @@
 //! * https://www.w3.org/TR/webauthn/#fig-signature
 //! * https://www.w3.org/TR/webauthn/images/fido-signature-formats-figure2.svg
 
-use coset::{CborSerializable, CoseKey};
+extern crate alloc;
 use p256::{
     ecdsa::{signature::Verifier, Signature, VerifyingKey},
     elliptic_curve::PublicKey,
     pkcs8::DecodePublicKey,
     NistP256,
 };
-use passkey_authenticator::public_key_der_from_cose_key;
 use sha2::{Digest, Sha256};
 
-fn concatenate_data(
-    authenticator_data: &[u8],
-    client_data_hash: &[u8],
-) -> Result<[u8; 512], &'static str> {
-    let total_len = authenticator_data.len() + client_data_hash.len();
-
-    if total_len > 512 {
-        return Err("Buffer overflow");
-    }
-
-    let mut message = [0u8; 512];
-    message[..authenticator_data.len()].copy_from_slice(authenticator_data);
-    message[authenticator_data.len()..total_len].copy_from_slice(client_data_hash);
-
-    Ok(message)
+#[derive(Debug)]
+pub enum VerifyError {
+    ExtractPublicKey,
+    ParseSignature,
+    VerifySignature,
 }
 
 pub fn webauthn_verify(
     authenticator_data: &[u8],
     client_data_json: &[u8],
     signature_der: &[u8],
-    credential_public_key_cbor: &[u8],
-) -> bool {
+    credential_public_key_der: &[u8],
+) -> Result<(), VerifyError> {
     // Step 1: Compute the SHA-256 hash of the client data JSON
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
     // Step 2: Concatenate authenticator data and client data hash
-    let message = match concatenate_data(authenticator_data, &client_data_hash) {
-        Ok(msg) => msg,
-        Err(_e) => {
-            // eprintln!("Failed to concatenate data: {:?}", e);
-            return false;
-        }
-    };
+    let message = vec![authenticator_data, &client_data_hash].concat();
 
-    // Step 3: Parse the COSE public key, convert it to DER format, and parse it
-    let public_key_cose = match CoseKey::from_slice(credential_public_key_cbor) {
-        Ok(key) => key,
-        Err(_e) => {
-            // eprintln!("Failed to parse COSE public key: {:?}", e);
-            return false;
-        }
-    };
-
-    let public_key_der = match public_key_der_from_cose_key(&public_key_cose) {
-        Ok(der) => der,
-        Err(_e) => {
-            // eprintln!("Failed to convert COSE key to DER format: {:?}", e);
-            return false;
-        }
-    };
-
-    let public_key = match PublicKey::<NistP256>::from_public_key_der(&public_key_der) {
-        Ok(key) => key,
-        Err(_e) => {
-            // eprintln!("Failed to parse public key DER: {:?}", e);
-            return false;
-        }
-    };
+    let public_key = PublicKey::<NistP256>::from_public_key_der(credential_public_key_der)
+        .map_err(|_| VerifyError::ExtractPublicKey)?;
 
     let verifying_key = VerifyingKey::from(public_key);
 
     // Step 4: Parse the DER signature
-    let signature = match Signature::from_der(signature_der) {
-        Ok(sig) => sig,
-        Err(_e) => {
-            // eprintln!("Failed to parse signature DER: {:?}", e);
-            return false;
-        }
-    };
+    let signature = Signature::from_der(signature_der).map_err(|_| VerifyError::ParseSignature)?;
 
     // Step 5: Verify the signature
-    if verifying_key.verify(&message, &signature).is_err() {
-        // eprintln!("Signature verification failed");
-        return false;
-    }
-
-    // println!("Signature verification succeeded");
-
-    true
+    verifying_key
+        .verify(&message, &signature)
+        .map(|_| ())
+        .map_err(|_| VerifyError::VerifySignature)
 }
 
 #[cfg(test)]
@@ -144,9 +95,10 @@ mod tests {
     use super::*;
     use coset::{
         iana::{Algorithm, EllipticCurve},
-        CborSerializable, CoseKeyBuilder,
+        CoseKeyBuilder,
     };
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+    use passkey_authenticator::public_key_der_from_cose_key;
     use rand::rngs::OsRng;
     use sha2::{Digest, Sha256};
 
@@ -174,10 +126,12 @@ mod tests {
             .algorithm(Algorithm::ES256)
             .build();
 
-        // Step 4: Serialize the COSE key pair
-        let public_key_cbor = public_key_cose
-            .to_vec()
-            .expect("Failed to serialize COSE key");
+        // Step 4: Convert to DER from COSE
+        // TODO: Is this conversion from COSE really necessary? Or is it possible to build the DER key from
+        // scratch using another library?
+        let public_key_der = public_key_der_from_cose_key(&public_key_cose)
+            .map_err(|_| VerifyError::ExtractPublicKey)
+            .expect("Conversion from COSE to DER failed");
 
         // Step 5: Compute client_data_hash and message
         let client_data_hash = Sha256::digest(client_data_json);
@@ -193,17 +147,13 @@ mod tests {
         let signature_der = signature.to_der();
 
         // Step 7: Verify the signature
-        let is_valid = webauthn_verify(
+        webauthn_verify(
             authenticator_data,
             client_data_json,
             signature_der.as_bytes(),
-            public_key_cbor.as_slice(),
-        );
-
-        assert!(
-            is_valid,
-            "The signature should be valid with the generated sample data."
-        );
+            public_key_der.as_slice(),
+        )
+        .expect("Verifying signature failed");
     }
 
     #[test]
@@ -228,10 +178,12 @@ mod tests {
             .algorithm(Algorithm::ES256)
             .build();
 
-        // Step 4: Serialize the COSE key pair
-        let public_key_cbor = public_key_cose
-            .to_vec()
-            .expect("Failed to serialize COSE key");
+        // Step 4: Convert to DER from COSE
+        // TODO: Is this conversion from COSE really necessary? Or is it possible to build the DER key from
+        // scratch using another library?
+        let public_key_der = public_key_der_from_cose_key(&public_key_cose)
+            .map_err(|_| VerifyError::ExtractPublicKey)
+            .expect("Conversion from COSE to DER failed");
 
         // Step 5: Compute client_data_hash and message
         let client_data_hash = Sha256::digest(client_data_json);
@@ -248,16 +200,16 @@ mod tests {
         tampered_signature_der[0] ^= 0xFF; // Flip some bits
 
         // Step 8: Verify the signature (should fail)
-        let is_valid = webauthn_verify(
+        if let Ok(()) = webauthn_verify(
             authenticator_data,
             client_data_json,
             &tampered_signature_der,
-            public_key_cbor.as_slice(),
-        );
-
-        assert!(
-            !is_valid,
-            "The signature verification should fail with an invalid signature."
-        );
+            public_key_der.as_slice(),
+        ) {
+            assert!(
+                false,
+                "The signature verification should fail with an invalid signature."
+            );
+        }
     }
 }
