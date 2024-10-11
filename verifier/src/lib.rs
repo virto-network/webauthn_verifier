@@ -1,4 +1,5 @@
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
 //! Verifies a WebAuthn response signature.
 //!
 //! This function validates the signature of a WebAuthn authentication response by:
@@ -53,7 +54,7 @@ use p256::{
     pkcs8::DecodePublicKey,
     NistP256,
 };
-use passkey::authenticator;
+use passkey_authenticator::public_key_der_from_cose_key;
 use sha2::{Digest, Sha256};
 
 fn concatenate_data(
@@ -73,7 +74,7 @@ fn concatenate_data(
     Ok(message)
 }
 
-pub fn verify_webauthn_response(
+pub fn webauthn_verify(
     authenticator_data: &[u8],
     client_data_json: &[u8],
     signature_der: &[u8],
@@ -100,7 +101,7 @@ pub fn verify_webauthn_response(
         }
     };
 
-    let public_key_der = match authenticator::public_key_der_from_cose_key(&public_key_cose) {
+    let public_key_der = match public_key_der_from_cose_key(&public_key_cose) {
         Ok(der) => der,
         Err(_e) => {
             // eprintln!("Failed to convert COSE key to DER format: {:?}", e);
@@ -192,7 +193,7 @@ mod tests {
         let signature_der = signature.to_der();
 
         // Step 7: Verify the signature
-        let is_valid = verify_webauthn_response(
+        let is_valid = webauthn_verify(
             authenticator_data,
             client_data_json,
             signature_der.as_bytes(),
@@ -247,7 +248,7 @@ mod tests {
         tampered_signature_der[0] ^= 0xFF; // Flip some bits
 
         // Step 8: Verify the signature (should fail)
-        let is_valid = verify_webauthn_response(
+        let is_valid = webauthn_verify(
             authenticator_data,
             client_data_json,
             &tampered_signature_der,

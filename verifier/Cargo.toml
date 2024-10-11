@@ -1,0 +1,20 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+name = "verifier"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+coset.workspace = true
+p256.workspace = true
+passkey-authenticator.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+
+[features]
+default = ["std"]
+std = ["coset/std", "p256/std", "sha2/std", "rand/std"]
