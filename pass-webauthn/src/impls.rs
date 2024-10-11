@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
 
-use frame_support::Parameter;
+use codec::Decode;
+use frame_support::{sp_runtime::traits::TrailingZeroInput, Parameter};
+use serde_json::Value;
 use traits_authn::{
     AuthorityId, Challenge, Challenger, DeviceChallengeResponse, DeviceId, HashedUserId,
     UserChallengeResponse,
@@ -33,7 +35,16 @@ where
     }
 
     fn challenge(&self) -> Challenge {
-        todo!("Extract `challenge`, format into `Challenge` format (that is, [u8; 32])");
+        || -> Result<AuthorityId, ()> {
+            let client_data_json =
+                serde_json::from_slice::<Value>(&self.client_data).map_err(|_| ())?;
+
+            let challenge_str =
+                base64::decode(client_data_json["challenge"].as_str().ok_or(())?.as_bytes())
+                    .map_err(|_| ())?;
+            Decode::decode(&mut TrailingZeroInput::new(&challenge_str)).map_err(|_| ())?
+        }()
+        .unwrap_or_default()
     }
 }
 
@@ -57,7 +68,18 @@ where
     }
 
     fn authority(&self) -> AuthorityId {
-        todo!("Extract `rp_id`, format into `AuthorityId` format (that is, [u8; 32])");
+        || -> Result<AuthorityId, ()> {
+            let client_data_json =
+                serde_json::from_slice::<Value>(&self.client_data).map_err(|_| ())?;
+
+            let origin = client_data_json["origin"].as_str().ok_or(())?;
+            let (_, domain) = origin.split_once("//").ok_or(())?;
+            let (rp_id_subdomain, _) = domain.split_once(".").ok_or(())?;
+
+            Decode::decode(&mut TrailingZeroInput::new(rp_id_subdomain.as_bytes()))
+                .map_err(|_| ())?
+        }()
+        .unwrap_or_default()
     }
 
     fn device_id(&self) -> &DeviceId {

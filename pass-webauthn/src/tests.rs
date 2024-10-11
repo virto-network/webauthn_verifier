@@ -3,13 +3,13 @@
 use frame_support::{
     assert_noop, assert_ok, derive_impl, parameter_types,
     sp_runtime::{str_array as s, traits::Hash},
-    traits::{ConstU64, Get},
+    traits::ConstU64,
     PalletId,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Config, EnsureRootWithSuccess};
 use traits_authn::{util::AuthorityFromPalletId, Challenger, HashedUserId};
 
-use crate::{Attestation, Authenticator};
+use crate::{Attestation, Authenticator, Credential};
 
 #[frame_support::runtime]
 pub mod runtime {
@@ -50,7 +50,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-  pub PassPalletId: PalletId = PalletId(*b"pass/web");
+  pub PassPalletId: PalletId = PalletId(*b"pass_web");
   pub NeverPays: Option<pallet_pass::DepositInformation<Test>> = None;
 }
 
@@ -76,6 +76,27 @@ impl pallet_pass::Config for Test {
     type MaxSessionDuration = ConstU64<10>;
     type RegisterOrigin = EnsureRootWithSuccess<Self::AccountId, NeverPays>;
     type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = Helper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct Helper;
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_pass::BenchmarkHelper<Test> for Helper {
+    fn register_origin() -> frame_system::pallet_prelude::OriginFor<Test> {
+        RuntimeOrigin::root()
+    }
+
+    fn device_attestation(_: traits_authn::DeviceId) -> pallet_pass::DeviceAttestationOf<Test, ()> {
+        let (a, b, c, d) = build_attesttation_fields(&System::block_number());
+        Attestation::new(a, b, c, d)
+    }
+
+    fn credential(_: HashedUserId) -> pallet_pass::CredentialOf<Test, ()> {
+        let (a, b, c, d) = build_attesttation_fields(&System::block_number());
+        Credential::new(a, b, c, d)
+    }
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -108,18 +129,19 @@ fn build_attesttation_fields(ctx: &BlockNumberFor<Test>) -> (Vec<u8>, Vec<u8>, V
     let rp_id = String::from_utf8(PassPalletId::get().0.to_vec())
         .expect("converting from ascii to utf-8 is guaranteed; qed");
     let origin =
-        Url::parse(&format!("urn://blockchain/{rp_id}")).expect("urn parses as a valid URL");
-    let key = Passkey::mock(rp_id.clone()).build();
+        Url::parse(&format!("https://{rp_id}.pallet-pass.int")).expect("urn parses as a valid URL");
+    let key = Passkey::mock(rp_id).build();
     let store = Some(key.clone());
 
-    let authenticator = Authenticator::new(aaguid, store, MockUserValidationMethod::new());
+    let authenticator =
+        Authenticator::new(aaguid, store, MockUserValidationMethod::verified_user(1));
     let mut client = Client::new(authenticator);
 
     let request = CredentialRequestOptions {
         public_key: PublicKeyCredentialRequestOptions {
             challenge: BlockChallenger::generate(ctx).as_slice().into(),
             timeout: None,
-            rp_id: Some(rp_id),
+            rp_id: None,
             allow_credentials: None,
             user_verification: UserVerificationRequirement::default(),
             hints: None,
@@ -151,7 +173,23 @@ fn registration_fails_if_attestation_is_invalid() {
         let (authenticator_data, client_data, public_key, signature) =
             build_attesttation_fields(&System::block_number());
         let signature = [signature, b"Whoops!".to_vec()].concat();
-        let attestation = Attestation::new(authenticator_data, client_data, public_key, signature);
+
+        use passkey_types::ctap2::AuthenticatorData;
+        let raw_authenticator_data = AuthenticatorData::from_slice(&authenticator_data)
+            .expect("this conversion works both ways");
+
+        println!(
+            "authenticator_data = {:?}\nclient_data_json = {}",
+            &raw_authenticator_data,
+            &String::from_utf8(client_data.clone()).expect("converting json works")
+        );
+
+        let attestation = Attestation::new(
+            authenticator_data.to_vec(),
+            client_data,
+            public_key,
+            signature,
+        );
 
         assert_noop!(
             Pass::register(RuntimeOrigin::root(), USER, attestation),

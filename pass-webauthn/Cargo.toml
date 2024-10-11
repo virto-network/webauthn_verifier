@@ -7,10 +7,12 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+base64.workspace = true
 codec.workspace = true
 frame-support.workspace = true
 frame-support.optional = true
 scale-info.workspace = true
+serde_json.workspace = true
 traits-authn.workspace = true
 verifier.workspace = true
 
@@ -35,6 +37,7 @@ runtime-benchmarks = [
   "pallet-pass/runtime-benchmarks",
 ]
 std = [
+  "base64/std",
   "codec/std",
   "frame-support/std",
   "frame-system/std",
@@ -42,6 +45,7 @@ std = [
   "pallet-balances/std",
   "pallet-pass/std",
   "scale-info/std",
+  "serde_json/std",
   "sp-io/std",
   "traits-authn/std",
   "verifier/std",
