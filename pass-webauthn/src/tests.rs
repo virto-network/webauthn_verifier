@@ -3,7 +3,7 @@
 use frame_support::{
     assert_noop, assert_ok, derive_impl, parameter_types,
     sp_runtime::{str_array as s, traits::Hash},
-    traits::ConstU64,
+    traits::{ConstU64, Get},
     PalletId,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Config, EnsureRootWithSuccess};
@@ -54,13 +54,15 @@ parameter_types! {
   pub NeverPays: Option<pallet_pass::DepositInformation<Test>> = None;
 }
 
+type AuthorityId = AuthorityFromPalletId<PassPalletId>;
+
 pub struct BlockChallenger;
 
 impl Challenger for BlockChallenger {
     type Context = BlockNumberFor<Test>;
 
-    fn generate(_: &Self::Context) -> traits_authn::Challenge {
-        <Test as Config>::Hashing::hash(&System::block_number().to_le_bytes()).0
+    fn generate(ctx: &Self::Context) -> traits_authn::Challenge {
+        <Test as Config>::Hashing::hash(&ctx.to_le_bytes()).0
     }
 }
 
@@ -68,7 +70,7 @@ impl pallet_pass::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
     type Currency = Balances;
-    type Authenticator = Authenticator<BlockChallenger, AuthorityFromPalletId<PassPalletId>>;
+    type Authenticator = Authenticator<BlockChallenger, AuthorityId>;
     type PalletsOrigin = OriginCaller;
     type PalletId = PassPalletId;
     type MaxSessionDuration = ConstU64<10>;
@@ -86,16 +88,73 @@ fn new_test_ext() -> sp_io::TestExternalities {
 
 const USER: HashedUserId = s("the_user");
 
+fn build_attesttation_fields(ctx: &BlockNumberFor<Test>) -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+    use futures::executor::block_on;
+    use passkey_authenticator::{
+        public_key_der_from_cose_key, Authenticator, MockUserValidationMethod,
+    };
+    use passkey_client::{Client, DefaultClientData};
+    use passkey_types::{
+        ctap2::Aaguid,
+        webauthn::{
+            AttestationConveyancePreference, CredentialRequestOptions,
+            PublicKeyCredentialRequestOptions, UserVerificationRequirement,
+        },
+        Passkey,
+    };
+    use url::Url;
+
+    let aaguid = Aaguid::new_empty();
+    let rp_id = String::from_utf8(PassPalletId::get().0.to_vec())
+        .expect("converting from ascii to utf-8 is guaranteed; qed");
+    let origin =
+        Url::parse(&format!("urn://blockchain/{rp_id}")).expect("urn parses as a valid URL");
+    let key = Passkey::mock(rp_id.clone()).build();
+    let store = Some(key.clone());
+
+    let authenticator = Authenticator::new(aaguid, store, MockUserValidationMethod::new());
+    let mut client = Client::new(authenticator);
+
+    let request = CredentialRequestOptions {
+        public_key: PublicKeyCredentialRequestOptions {
+            challenge: BlockChallenger::generate(ctx).as_slice().into(),
+            timeout: None,
+            rp_id: Some(rp_id),
+            allow_credentials: None,
+            user_verification: UserVerificationRequirement::default(),
+            hints: None,
+            attestation: AttestationConveyancePreference::None,
+            attestation_formats: None,
+            extensions: None,
+        },
+    };
+
+    let authenticated_request = block_on(client.authenticate(&origin, request, DefaultClientData))
+        .expect("authenticate works");
+
+    let authenticator_data = authenticated_request.response.authenticator_data;
+    let client_data = authenticated_request.response.client_data_json;
+    let public_key = public_key_der_from_cose_key(&key.key).expect("key conversion works");
+    let signature = authenticated_request.response.signature;
+
+    (
+        authenticator_data.to_vec(),
+        client_data.to_vec(),
+        public_key.to_vec(),
+        signature.to_vec(),
+    )
+}
+
 #[test]
 fn registration_fails_if_attestation_is_invalid() {
     new_test_ext().execute_with(|| {
-        // TODO: Fill with garbage data or incorrect signature (whatever works best)
+        let (authenticator_data, client_data, public_key, signature) =
+            build_attesttation_fields(&System::block_number());
+        let signature = [signature, b"Whoops!".to_vec()].concat();
+        let attestation = Attestation::new(authenticator_data, client_data, public_key, signature);
+
         assert_noop!(
-            Pass::register(
-                RuntimeOrigin::root(),
-                USER,
-                Attestation::new(b"".to_vec(), b"".to_vec(), b"".to_vec(), b"".to_vec())
-            ),
+            Pass::register(RuntimeOrigin::root(), USER, attestation),
             pallet_pass::Error::<Test>::DeviceAttestationInvalid,
         );
     })
@@ -104,11 +163,10 @@ fn registration_fails_if_attestation_is_invalid() {
 #[test]
 fn registration_works_if_attestation_is_valid() {
     new_test_ext().execute_with(|| {
-        // TODO: Fill with valid data and signature
-        assert_ok!(Pass::register(
-            RuntimeOrigin::root(),
-            USER,
-            Attestation::new(b"".to_vec(), b"".to_vec(), b"".to_vec(), b"".to_vec())
-        ));
+        let (authenticator_data, client_data, public_key, signature) =
+            build_attesttation_fields(&System::block_number());
+        let attestation = Attestation::new(authenticator_data, client_data, public_key, signature);
+
+        assert_ok!(Pass::register(RuntimeOrigin::root(), USER, attestation));
     })
 }

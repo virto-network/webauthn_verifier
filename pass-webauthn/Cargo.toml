@@ -16,9 +16,14 @@ verifier.workspace = true
 
 [dev-dependencies]
 frame-system.workspace = true
+futures.workspace = true
 pallet-balances.workspace = true
 pallet-pass.workspace = true
+passkey-authenticator.workspace = true
+passkey-client.workspace = true
+passkey-types.workspace = true
 sp-io.workspace = true
+url.workspace = true
 
 [features]
 default = ["std", "runtime"]
@@ -33,6 +38,7 @@ std = [
   "codec/std",
   "frame-support/std",
   "frame-system/std",
+  "futures/std",
   "pallet-balances/std",
   "pallet-pass/std",
   "scale-info/std",

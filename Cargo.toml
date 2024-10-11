@@ -8,10 +8,22 @@ repository = "https://github.com/virto-network/webauthn"
 [workspace.dependencies]
 # WebAuthN Verifier
 coset = { version = "0.3.0", default-features = false }
+futures = { version = "0.3.31", default-features = false, features = [
+  "executor",
+] }
 p256 = { version = "0.13.2", default-features = false }
-passkey-authenticator = { version = "0.3.0", default-features = false }
+passkey-authenticator = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
+passkey-client = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
+passkey-types = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
 sha2 = { version = "0.10.8", default-features = false }
 rand = "0.8.5"
+url = "2.5.2"
 
 # FRAME
 codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
