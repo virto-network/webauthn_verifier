@@ -8,6 +8,7 @@ version = "0.1.0"
 
 [dependencies]
 p256.workspace = true
+p256.features = ["ecdsa", "pkcs8"]
 sha2.workspace = true
 
 [dev-dependencies]

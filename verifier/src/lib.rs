@@ -44,12 +44,12 @@
 //!
 //! * [Web Authentication: An API for accessing Public Key Credentials Level 2 - §7.2. Verifying an Authentication Assertion](https://www.w3.org/TR/webauthn/#sctn-verifying-assertion)
 //! * "20. Using credentialPublicKey, verify that sig is a valid signature over the binary concatenation of authData and hash."
-//! * https://www.w3.org/TR/webauthn/#fig-signature
-//! * https://www.w3.org/TR/webauthn/images/fido-signature-formats-figure2.svg
+//! * <https://www.w3.org/TR/webauthn/#fig-signature>
+//! * <https://www.w3.org/TR/webauthn/images/fido-signature-formats-figure2.svg>
 
 extern crate alloc;
 use p256::{
-    ecdsa::{signature::Verifier, Signature, VerifyingKey},
+    ecdsa::{signature::Verifier, DerSignature, VerifyingKey},
     elliptic_curve::PublicKey,
     pkcs8::DecodePublicKey,
     NistP256,
@@ -75,13 +75,16 @@ pub fn webauthn_verify(
     // Step 2: Concatenate authenticator data and client data hash
     let message = vec![authenticator_data, &client_data_hash].concat();
 
-    let public_key = PublicKey::<NistP256>::from_public_key_der(credential_public_key_der)
-        .map_err(|_| VerifyError::ExtractPublicKey)?;
+    // Step 3: Extract public key from DER format
+    let public_key: PublicKey<NistP256> =
+        DecodePublicKey::from_public_key_der(credential_public_key_der)
+            .map_err(|_| VerifyError::ExtractPublicKey)?;
 
     let verifying_key = VerifyingKey::from(public_key);
 
     // Step 4: Parse the DER signature
-    let signature = Signature::from_der(signature_der).map_err(|_| VerifyError::ParseSignature)?;
+    let signature =
+        DerSignature::try_from(signature_der).map_err(|_| VerifyError::ParseSignature)?;
 
     // Step 5: Verify the signature
     verifying_key
