@@ -92,17 +92,12 @@ where
     }
 }
 
+#[cfg(any(feature = "runtime", test))]
 impl<Cx> UserChallengeResponse<Cx> for Credential<Cx>
 where
     Cx: Parameter + Copy + 'static,
 {
     fn is_valid(&self) -> bool {
-        // TODO: Add sanity tests to verify that the information that's in the structure
-        // (`challenge_info`, `rp_id`, `device_id`) corresponds to the information in
-        // `authenticator_data` and `client_data`, and all that is congruent.
-        //
-        // Note: This might require using a json parsing library?
-
         webauthn_verify(
             self.authenticator_data.as_ref(),
             &self.client_data,
