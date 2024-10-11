@@ -2,11 +2,12 @@ use core::marker::PhantomData;
 
 use frame_support::Parameter;
 use traits_authn::{
-    AuthorityId, Challenge, DeviceChallengeResponse, DeviceId, HashedUserId, UserChallengeResponse,
+    AuthorityId, Challenge, Challenger, DeviceChallengeResponse, DeviceId, HashedUserId,
+    UserChallengeResponse,
 };
 use verifier::webauthn_verify;
 
-use crate::{Attestation, Credential};
+use crate::{Attestation, Credential, CxOf, Device, DeviceInfo};
 
 impl<Cx> Attestation<Cx>
 where
@@ -61,6 +62,24 @@ where
 
     fn device_id(&self) -> &DeviceId {
         todo!("Extract `device_id`, format into `DeviceId` format (that is, [u8; 32])");
+    }
+}
+
+#[cfg(any(feature = "runtime", test))]
+impl<Ch, A> From<Attestation<CxOf<Ch>>> for Device<Ch, A>
+where
+    Ch: Challenger,
+    CxOf<Ch>: Parameter + Copy + 'static,
+{
+    fn from(value: Attestation<CxOf<Ch>>) -> Self {
+        Device::new(DeviceInfo(value.device_id().clone()))
+    }
+}
+
+#[cfg(any(feature = "runtime", test))]
+impl AsRef<DeviceId> for DeviceInfo {
+    fn as_ref(&self) -> &DeviceId {
+        &self.0
     }
 }
 

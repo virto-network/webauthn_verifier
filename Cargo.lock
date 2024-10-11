@@ -2228,7 +2228,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-io",
- "sp-runtime",
  "verifier",
 ]
 
