@@ -1,11 +1,10 @@
-use core::marker::PhantomData;
-
 use codec::Decode;
 use frame_support::{sp_runtime::traits::TrailingZeroInput, Parameter};
 use serde_json::Value;
+use sp_io::hashing::blake2_256;
 use traits_authn::{
-    AuthorityId, Challenge, Challenger, DeviceChallengeResponse, DeviceId, HashedUserId,
-    UserChallengeResponse,
+    util::VerifyCredential, AuthorityId, Challenge, Challenger, DeviceChallengeResponse, DeviceId,
+    HashedUserId, UserChallengeResponse,
 };
 use verifier::webauthn_verify;
 
@@ -15,25 +14,6 @@ impl<Cx> Attestation<Cx>
 where
     Cx: Parameter,
 {
-    pub fn new(
-        authenticator_data: Vec<u8>,
-        client_data: Vec<u8>,
-        signature: Vec<u8>,
-        public_key: Vec<u8>,
-    ) -> Self {
-        Self {
-            __phantom: PhantomData,
-            authenticator_data,
-            client_data,
-            signature,
-            public_key,
-        }
-    }
-
-    fn context(&self) -> Cx {
-        todo!("Extract `context` into `Cx` format (you can conveniently use `.decode()`)");
-    }
-
     fn challenge(&self) -> Challenge {
         || -> Result<AuthorityId, ()> {
             let client_data_json =
@@ -64,7 +44,7 @@ where
     }
 
     fn used_challenge(&self) -> (Cx, Challenge) {
-        (self.context(), self.challenge())
+        (self.context, self.challenge())
     }
 
     fn authority(&self) -> AuthorityId {
@@ -83,7 +63,7 @@ where
     }
 
     fn device_id(&self) -> &DeviceId {
-        todo!("Extract `device_id`, format into `DeviceId` format (that is, [u8; 32])");
+        &self.credential_id
     }
 }
 
@@ -94,14 +74,29 @@ where
     CxOf<Ch>: Parameter + Copy + 'static,
 {
     fn from(value: Attestation<CxOf<Ch>>) -> Self {
-        Device::new(DeviceInfo(value.device_id().clone()))
+        Device::new(DeviceInfo {
+            device_id: value.device_id().clone(),
+            public_key: value.public_key,
+        })
+    }
+}
+
+impl<Cx> VerifyCredential<Credential<Cx>> for DeviceInfo {
+    fn verify(&self, credential: &Credential<Cx>) -> Option<()> {
+        webauthn_verify(
+            &credential.authenticator_data,
+            &credential.client_data,
+            &credential.signature,
+            &self.public_key,
+        )
+        .ok()
     }
 }
 
 #[cfg(any(feature = "runtime", test))]
 impl AsRef<DeviceId> for DeviceInfo {
     fn as_ref(&self) -> &DeviceId {
-        &self.0
+        &self.device_id
     }
 }
 
@@ -109,25 +104,6 @@ impl<Cx> Credential<Cx>
 where
     Cx: Parameter,
 {
-    pub fn new(
-        authenticator_data: Vec<u8>,
-        client_data: Vec<u8>,
-        signature: Vec<u8>,
-        public_key: Vec<u8>,
-    ) -> Self {
-        Self {
-            __phantom: PhantomData,
-            authenticator_data,
-            client_data,
-            signature,
-            public_key,
-        }
-    }
-
-    fn context(&self) -> Cx {
-        todo!("Extract `context` into `Cx` format (you can conveniently use `.decode()`)");
-    }
-
     fn challenge(&self) -> Challenge {
         todo!("Extract `challenge`, format into `Challenge` format (that is, [u8; 32])");
     }
@@ -138,18 +114,13 @@ impl<Cx> UserChallengeResponse<Cx> for Credential<Cx>
 where
     Cx: Parameter + Copy + 'static,
 {
+    // TODO: @jgutierrezre please check if there are necessary validations involved here.
     fn is_valid(&self) -> bool {
-        webauthn_verify(
-            self.authenticator_data.as_ref(),
-            &self.client_data,
-            &self.signature,
-            &self.public_key,
-        )
-        .is_ok()
+        true
     }
 
     fn used_challenge(&self) -> (Cx, Challenge) {
-        (self.context(), self.challenge())
+        (self.context, self.challenge())
     }
 
     fn authority(&self) -> AuthorityId {
