@@ -7,9 +7,14 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Config, EnsureRootWithSuccess};
+use sp_io::hashing::blake2_256;
 use traits_authn::{util::AuthorityFromPalletId, Challenger, HashedUserId};
 
-use crate::{Attestation, Authenticator, Credential};
+use crate::Authenticator;
+
+mod authenticator_client;
+
+use authenticator_client::*;
 
 #[frame_support::runtime]
 pub mod runtime {
@@ -89,107 +94,39 @@ impl pallet_pass::BenchmarkHelper<Test> for Helper {
     }
 
     fn device_attestation(_: traits_authn::DeviceId) -> pallet_pass::DeviceAttestationOf<Test, ()> {
-        let (a, b, c, d) = build_attesttation_fields(&System::block_number());
-        Attestation::new(a, b, c, d)
+        WebAuthnClient::new("https://helper.pass.int")
+            .attestation(blake2_256(b"USER_ID"), System::block_number())
     }
 
-    fn credential(_: HashedUserId) -> pallet_pass::CredentialOf<Test, ()> {
-        let (a, b, c, d) = build_attesttation_fields(&System::block_number());
-        Credential::new(a, b, c, d)
+    fn credential(user_id: HashedUserId) -> pallet_pass::CredentialOf<Test, ()> {
+        let mut client = WebAuthnClient::new("https://helper.pass.int");
+        let attestation = client.attestation(user_id, System::block_number());
+        client.credential(attestation.credential_id.as_slice(), System::block_number())
     }
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+struct TestExt(pub sp_io::TestExternalities, pub WebAuthnClient);
+impl TestExt {
+    pub fn execute_with<R>(&mut self, execute: impl FnOnce(&mut WebAuthnClient) -> R) -> R {
+        self.0.execute_with(|| execute(&mut self.1))
+    }
+}
+
+fn new_test_ext() -> TestExt {
     let mut t = sp_io::TestExternalities::default();
     t.execute_with(|| {
         System::set_block_number(1);
     });
-    t
+    TestExt(t, WebAuthnClient::new("https://webauthn.pass.int"))
 }
 
 const USER: HashedUserId = s("the_user");
 
-fn build_attesttation_fields(ctx: &BlockNumberFor<Test>) -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
-    use futures::executor::block_on;
-    use passkey_authenticator::{
-        public_key_der_from_cose_key, Authenticator, MockUserValidationMethod,
-    };
-    use passkey_client::{Client, DefaultClientData};
-    use passkey_types::{
-        ctap2::Aaguid,
-        webauthn::{
-            AttestationConveyancePreference, CredentialRequestOptions,
-            PublicKeyCredentialRequestOptions, UserVerificationRequirement,
-        },
-        Passkey,
-    };
-    use url::Url;
-
-    let aaguid = Aaguid::new_empty();
-    let rp_id = String::from_utf8(PassPalletId::get().0.to_vec())
-        .expect("converting from ascii to utf-8 is guaranteed; qed");
-    let origin =
-        Url::parse(&format!("https://{rp_id}.pallet-pass.int")).expect("urn parses as a valid URL");
-    let key = Passkey::mock(rp_id).build();
-    let store = Some(key.clone());
-
-    let authenticator =
-        Authenticator::new(aaguid, store, MockUserValidationMethod::verified_user(1));
-    let mut client = Client::new(authenticator);
-
-    let request = CredentialRequestOptions {
-        public_key: PublicKeyCredentialRequestOptions {
-            challenge: BlockChallenger::generate(ctx).as_slice().into(),
-            timeout: None,
-            rp_id: None,
-            allow_credentials: None,
-            user_verification: UserVerificationRequirement::default(),
-            hints: None,
-            attestation: AttestationConveyancePreference::None,
-            attestation_formats: None,
-            extensions: None,
-        },
-    };
-
-    let authenticated_request = block_on(client.authenticate(&origin, request, DefaultClientData))
-        .expect("authenticate works");
-
-    let authenticator_data = authenticated_request.response.authenticator_data;
-    let client_data = authenticated_request.response.client_data_json;
-    let public_key = public_key_der_from_cose_key(&key.key).expect("key conversion works");
-    let signature = authenticated_request.response.signature;
-
-    (
-        authenticator_data.to_vec(),
-        client_data.to_vec(),
-        public_key.to_vec(),
-        signature.to_vec(),
-    )
-}
-
 #[test]
 fn registration_fails_if_attestation_is_invalid() {
-    new_test_ext().execute_with(|| {
-        let (authenticator_data, client_data, public_key, signature) =
-            build_attesttation_fields(&System::block_number());
-        let signature = [signature, b"Whoops!".to_vec()].concat();
-
-        use passkey_types::ctap2::AuthenticatorData;
-        let raw_authenticator_data = AuthenticatorData::from_slice(&authenticator_data)
-            .expect("this conversion works both ways");
-
-        println!(
-            "authenticator_data = {:?}\nclient_data_json = {}",
-            &raw_authenticator_data,
-            &String::from_utf8(client_data.clone()).expect("converting json works")
-        );
-
-        let attestation = Attestation::new(
-            authenticator_data.to_vec(),
-            client_data,
-            public_key,
-            signature,
-        );
+    new_test_ext().execute_with(|client| {
+        let mut attestation = client.attestation(USER, System::block_number());
+        attestation.signature = [attestation.signature, b"Whoops!".to_vec()].concat();
 
         assert_noop!(
             Pass::register(RuntimeOrigin::root(), USER, attestation),
@@ -200,11 +137,11 @@ fn registration_fails_if_attestation_is_invalid() {
 
 #[test]
 fn registration_works_if_attestation_is_valid() {
-    new_test_ext().execute_with(|| {
-        let (authenticator_data, client_data, public_key, signature) =
-            build_attesttation_fields(&System::block_number());
-        let attestation = Attestation::new(authenticator_data, client_data, public_key, signature);
-
-        assert_ok!(Pass::register(RuntimeOrigin::root(), USER, attestation));
+    new_test_ext().execute_with(|client| {
+        assert_ok!(Pass::register(
+            RuntimeOrigin::root(),
+            USER,
+            client.attestation(USER, System::block_number())
+        ));
     })
 }
