@@ -15,7 +15,7 @@ where
     Cx: Parameter,
 {
     fn challenge(&self) -> Challenge {
-        || -> Result<AuthorityId, ()> {
+        || -> Result<Challenge, ()> {
             let client_data_json =
                 serde_json::from_slice::<Value>(&self.client_data).map_err(|_| ())?;
 
@@ -33,14 +33,11 @@ impl<Cx> DeviceChallengeResponse<Cx> for Attestation<Cx>
 where
     Cx: Parameter + Copy + 'static,
 {
+    // TODO: @pandres95, considering that DeviceChallengeResponse is used for creating a new
+    // authentication device, webauth_verify wouldn't work here. We need to implement a new
+    // verification method exclusively for credential creation.
     fn is_valid(&self) -> bool {
-        webauthn_verify(
-            self.authenticator_data.as_ref(),
-            &self.client_data,
-            &self.signature,
-            &self.public_key,
-        )
-        .is_ok()
+        true
     }
 
     fn used_challenge(&self) -> (Cx, Challenge) {
@@ -105,7 +102,17 @@ where
     Cx: Parameter,
 {
     fn challenge(&self) -> Challenge {
-        todo!("Extract `challenge`, format into `Challenge` format (that is, [u8; 32])");
+        || -> Result<Challenge, ()> {
+            let client_data_json =
+                serde_json::from_slice::<Value>(&self.client_data).map_err(|_| ())?;
+
+            let challenge_str =
+                base64::decode(client_data_json["challenge"].as_str().ok_or(())?.as_bytes())
+                    .map_err(|_| ())?;
+
+            Decode::decode(&mut TrailingZeroInput::new(challenge_str.as_bytes())).map_err(|_| ())?
+        }()
+        .unwrap_or_default()
     }
 }
 
@@ -114,9 +121,14 @@ impl<Cx> UserChallengeResponse<Cx> for Credential<Cx>
 where
     Cx: Parameter + Copy + 'static,
 {
-    // TODO: @jgutierrezre please check if there are necessary validations involved here.
     fn is_valid(&self) -> bool {
-        true
+        webauthn_verify(
+            self.authenticator_data.as_ref(),
+            &self.client_data,
+            &self.signature,
+            &self.public_key,
+        )
+        .is_ok()
     }
 
     fn used_challenge(&self) -> (Cx, Challenge) {
@@ -124,10 +136,21 @@ where
     }
 
     fn authority(&self) -> AuthorityId {
-        todo!("Extract `rp_id`, format into `AuthorityId` format (that is, [u8; 32])");
+        || -> Result<AuthorityId, ()> {
+            let client_data_json =
+                serde_json::from_slice::<Value>(&self.client_data).map_err(|_| ())?;
+
+            let origin = client_data_json["origin"].as_str().ok_or(())?;
+            let (_, domain) = origin.split_once("//").ok_or(())?;
+            let (rp_id_subdomain, _) = domain.split_once(".").ok_or(())?;
+
+            Decode::decode(&mut TrailingZeroInput::new(rp_id_subdomain.as_bytes()))
+                .map_err(|_| ())?
+        }()
+        .unwrap_or_default()
     }
 
     fn user_id(&self) -> HashedUserId {
-        todo!("Extract `user_id`, format into `HashedUserId` format (that is, [u8; 32])");
+        &self.user_id
     }
 }
