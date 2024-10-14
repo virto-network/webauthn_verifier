@@ -17,6 +17,7 @@ traits-authn.workspace = true
 verifier.workspace = true
 
 [dev-dependencies]
+coset.workspace = true
 frame-system.workspace = true
 futures.workspace = true
 pallet-balances.workspace = true
@@ -24,6 +25,7 @@ pallet-pass.workspace = true
 passkey-authenticator.workspace = true
 passkey-client.workspace = true
 passkey-types.workspace = true
+public-suffix.workspace = true
 sp-io.workspace = true
 url.workspace = true
 

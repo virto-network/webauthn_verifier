@@ -614,9 +614,9 @@ checksum = "c3ac9f8b63eca6fd385229b3675f6cc0dc5c8a5c8a54a59d4f52ffd670d87b0c"
 
 [[package]]
 name = "bytemuck"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94bbb0ad554ad961ddc5da507a12a29b14e4ae5bda06b19f575a3e6079d2e2ae"
+checksum = "8334215b81e418a0a7bdb8ef0849474f40bb10c8b71f1c4ed315cff49f32494d"
 
 [[package]]
 name = "byteorder"
@@ -632,9 +632,9 @@ checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 
 [[package]]
 name = "cc"
-version = "1.1.28"
+version = "1.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e80e3b6a3ab07840e1cae9b0666a63970dc28e8ed5ffbcdacbfc760c281bfc1"
+checksum = "b16803a61b81d9eabb7eae2588776c4c1e584b738ede45fdbb4c972cec1e9945"
 dependencies = [
  "shlex",
 ]
@@ -1145,7 +1145,7 @@ dependencies = [
 [[package]]
 name = "fc-pallet-pass"
 version = "1.0.0"
-source = "git+https://github.com/virto-network/frame-contrib#fef585072129f142ce1f3bc7401c6a4fb861f0b0"
+source = "git+https://github.com/virto-network/frame-contrib#aee5270ecd5577c0f5a5c700b0127cae9801737a"
 dependencies = [
  "fc-traits-authn",
  "frame-benchmarking",
@@ -1164,7 +1164,7 @@ dependencies = [
 [[package]]
 name = "fc-traits-authn"
 version = "0.1.0"
-source = "git+https://github.com/virto-network/frame-contrib#fef585072129f142ce1f3bc7401c6a4fb861f0b0"
+source = "git+https://github.com/virto-network/frame-contrib#aee5270ecd5577c0f5a5c700b0127cae9801737a"
 dependencies = [
  "fc-traits-authn-proc",
  "frame-support",
@@ -1177,7 +1177,7 @@ dependencies = [
 [[package]]
 name = "fc-traits-authn-proc"
 version = "0.1.0"
-source = "git+https://github.com/virto-network/frame-contrib#fef585072129f142ce1f3bc7401c6a4fb861f0b0"
+source = "git+https://github.com/virto-network/frame-contrib#aee5270ecd5577c0f5a5c700b0127cae9801737a"
 dependencies = [
  "quote",
  "syn 2.0.79",
@@ -1896,9 +1896,9 @@ dependencies = [
 
 [[package]]
 name = "linregress"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4de04dcecc58d366391f9920245b85ffa684558a5ef6e7736e754347c3aea9c2"
+checksum = "a9eda9dcf4f2a99787827661f312ac3219292549c2ee992bf9a6248ffb066bf7"
 dependencies = [
  "nalgebra",
 ]
@@ -2051,29 +2051,17 @@ dependencies = [
 
 [[package]]
 name = "nalgebra"
-version = "0.32.6"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5c17de023a86f59ed79891b2e5d5a94c705dbe904a5b5c9c952ea6221b03e4"
+checksum = "3c4b5f057b303842cf3262c27e465f4c303572e7f6b0648f60e16248ac3397f4"
 dependencies = [
  "approx",
  "matrixmultiply",
- "nalgebra-macros",
  "num-complex",
  "num-rational",
  "num-traits",
  "simba",
  "typenum",
-]
-
-[[package]]
-name = "nalgebra-macros"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "254a5372af8fc138e36684761d3c0cdb758a4410e938babcff1c860ce14ddbfc"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.79",
 ]
 
 [[package]]
@@ -2148,6 +2136,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
 dependencies = [
+ "num-bigint",
  "num-integer",
  "num-traits",
 ]
@@ -2299,6 +2288,7 @@ dependencies = [
 name = "pass-webauthn"
 version = "0.1.0"
 dependencies = [
+ "coset",
  "fc-pallet-pass",
  "fc-traits-authn",
  "frame-support",
@@ -2309,6 +2299,7 @@ dependencies = [
  "passkey-authenticator",
  "passkey-client",
  "passkey-types",
+ "public-suffix",
  "scale-info",
  "serde_json",
  "simple-base64",
@@ -3077,9 +3068,9 @@ dependencies = [
 
 [[package]]
 name = "simba"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "061507c94fc6ab4ba1c9a0305018408e312e17c041eb63bef8aa726fa33aceae"
+checksum = "b3a386a501cd104797982c15ae17aafe8b9261315b5d07e3ec803f2ea26be0fa"
 dependencies = [
  "approx",
  "num-complex",
@@ -3247,7 +3238,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -3300,7 +3291,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3320,7 +3311,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -3456,7 +3447,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -3488,7 +3479,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "Inflector",
  "expander",
@@ -3539,7 +3530,7 @@ source = "git+https://github.com/virto-network/polkadot-sdk?branch=release-virto
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 
 [[package]]
 name = "sp-storage"
@@ -3556,7 +3547,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -3579,7 +3570,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "parity-scale-codec",
  "tracing",
@@ -3651,7 +3642,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#439b31ef9bbdf0e0709bbab4804a9590b48ba8f0"
+source = "git+https://github.com/paritytech/polkadot-sdk#d1c115b6197bf6c45d5640594f0432e6c2781a4f"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
