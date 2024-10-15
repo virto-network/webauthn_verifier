@@ -12,8 +12,9 @@ codec.workspace = true
 frame-support.workspace = true
 frame-support.optional = true
 scale-info.workspace = true
-serde_json.workspace = true
 traits-authn.workspace = true
+url.workspace = true
+sp-io.workspace = true
 verifier.workspace = true
 
 [dev-dependencies]
@@ -26,8 +27,7 @@ passkey-authenticator.workspace = true
 passkey-client.workspace = true
 passkey-types.workspace = true
 public-suffix.workspace = true
-sp-io.workspace = true
-url.workspace = true
+serde_json.workspace = true
 
 [features]
 default = ["std", "runtime"]
