@@ -1,11 +1,14 @@
 use codec::Decode;
 use frame_support::sp_runtime::traits::TrailingZeroInput;
+
 use traits_authn::{AuthorityId, Challenge};
+
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use url::Url;
 
 pub fn find_challenge_from_client_data(client_data: Vec<u8>) -> Option<Challenge> {
     get_from_json_then_map(client_data, "challenge", |challenge| {
-        base64::decode(challenge.as_bytes()).ok()
+        base64::decode_engine(challenge.as_bytes(), &BASE64_URL_SAFE_NO_PAD).ok()
     })
 }
 
