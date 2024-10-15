@@ -21,12 +21,12 @@ pub struct WebAuthnClient {
 }
 
 impl WebAuthnClient {
-    pub fn new(origin: &'static str) -> Self {
+    pub fn new(origin: &'static str, times: usize) -> Self {
         // Create Authenticator
         let authenticator = Authenticator::new(
             Aaguid::new_empty(),
             None,
-            MockUserValidationMethod::verified_user(1),
+            MockUserValidationMethod::verified_user(times),
         );
         Self {
             origin: Url::parse(origin).expect("invalid url provided"),
@@ -159,7 +159,7 @@ impl WebAuthnClient {
         )
     }
 
-    pub fn credential(
+    pub fn assertion(
         &mut self,
         credential_id: impl Into<Bytes>,
         context: BlockNumberFor<Test>,
