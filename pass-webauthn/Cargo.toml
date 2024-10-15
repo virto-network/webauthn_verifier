@@ -1,0 +1,58 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+name = "pass-webauthn"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+base64.workspace = true
+codec.workspace = true
+frame-support.workspace = true
+frame-support.optional = true
+scale-info.workspace = true
+traits-authn.workspace = true
+url.workspace = true
+verifier.workspace = true
+
+[dev-dependencies]
+coset.workspace = true
+frame-system.workspace = true
+futures.workspace = true
+pallet-balances.workspace = true
+pallet-pass.workspace = true
+passkey-authenticator.workspace = true
+passkey-client.workspace = true
+passkey-types.workspace = true
+public-suffix.workspace = true
+sp-io.workspace = true
+
+[features]
+default = ["std", "runtime"]
+runtime = ["frame-support"]
+runtime-benchmarks = [
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "pallet-balances/runtime-benchmarks",
+  "pallet-pass/runtime-benchmarks",
+]
+std = [
+  "base64/std",
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "futures/std",
+  "pallet-balances/std",
+  "pallet-pass/std",
+  "scale-info/std",
+  "sp-io/std",
+  "traits-authn/std",
+  "verifier/std",
+]
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "pallet-balances/try-runtime",
+  "pallet-pass/try-runtime",
+]

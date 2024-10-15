@@ -1,16 +1,53 @@
-[package]
-name = "webauthn_verifier"
-version = "0.1.0"
+[workspace.package]
+authors = ["Virto Team <contact@virto.network>"]
 edition = "2021"
-resolver = "2"
+license = "GPL-3.0-only"
+version = "0.1.0"
+repository = "https://github.com/virto-network/webauthn"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[workspace.dependencies]
+# WebAuthN Verifier
+base64 = { package = "simple-base64", version = "0.23.2", default-features = false }
 coset = { version = "0.3.0", default-features = false }
+futures = { version = "0.3.31", default-features = false, features = [
+  "executor",
+] }
 p256 = { version = "0.13.2", default-features = false }
-passkey = { version = "0.3.0", default-features = false }
-sha2 = { version = "0.10.8", default-features = false }
-
-[dev-dependencies]
+passkey-authenticator = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
+passkey-client = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
+passkey-types = { version = "0.3.0", default-features = false, features = [
+  "testable",
+] }
+public-suffix = "0.1"
 rand = "0.8.5"
+sha2 = { version = "0.10.8", default-features = false }
+url = "2.5.2"
+
+# FRAME
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
+  "derive",
+] }
+scale-info = { version = "2.11.3", default-features = false, features = [
+  "derive",
+] }
+frame-support = { git = "https://github.com/virto-network/polkadot-sdk", branch = "release-virto-v1.13.0", default-features = false }
+frame-system = { git = "https://github.com/virto-network/polkadot-sdk", branch = "release-virto-v1.13.0", default-features = false }
+pallet-balances = { git = "https://github.com/virto-network/polkadot-sdk", branch = "release-virto-v1.13.0", default-features = false }
+sp-io = { git = "https://github.com/virto-network/polkadot-sdk", branch = "release-virto-v1.13.0", default-features = false }
+sp-runtime = { git = "https://github.com/virto-network/polkadot-sdk", branch = "release-virto-v1.13.0", default-features = false }
+
+# FRAME Contrib
+traits-authn = { git = "https://github.com/virto-network/frame-contrib", package = "fc-traits-authn", default-features = false }
+pallet-pass = { git = "https://github.com/virto-network/frame-contrib", package = "fc-pallet-pass", default-features = false }
+
+# Local Crates
+verifier = { path = "verifier", default-features = false }
+pass-webauthn = { path = "pass-webauthn", default-features = false }
+
+[workspace]
+members = ["pass-webauthn", "verifier"]
+resolver = "2"
