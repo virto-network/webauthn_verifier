@@ -2301,7 +2301,6 @@ dependencies = [
  "passkey-types",
  "public-suffix",
  "scale-info",
- "serde_json",
  "simple-base64",
  "sp-io",
  "url",

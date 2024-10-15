@@ -14,7 +14,6 @@ frame-support.optional = true
 scale-info.workspace = true
 traits-authn.workspace = true
 url.workspace = true
-sp-io.workspace = true
 verifier.workspace = true
 
 [dev-dependencies]
@@ -27,7 +26,7 @@ passkey-authenticator.workspace = true
 passkey-client.workspace = true
 passkey-types.workspace = true
 public-suffix.workspace = true
-serde_json.workspace = true
+sp-io.workspace = true
 
 [features]
 default = ["std", "runtime"]
@@ -47,7 +46,6 @@ std = [
   "pallet-balances/std",
   "pallet-pass/std",
   "scale-info/std",
-  "serde_json/std",
   "sp-io/std",
   "traits-authn/std",
   "verifier/std",
