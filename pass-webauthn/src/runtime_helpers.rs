@@ -25,7 +25,7 @@ pub fn find_authority_id_from_client_data(client_data: Vec<u8>) -> Option<Author
 pub fn get_from_json_then_map<T>(
     json: Vec<u8>,
     key: &str,
-    map: impl FnOnce(String) -> Option<Vec<u8>>,
+    map: impl FnOnce(&str) -> Option<Vec<u8>>,
 ) -> Option<T>
 where
     T: Decode,
@@ -35,7 +35,7 @@ where
     let value = json
         .split(",")
         .find_map(|kv| kv.contains(key).then_some(kv.split_once(":")?.1))
-        .map(|v| v.trim().replace("\"", ""))
+        .map(|v| v.trim_matches(|c: char| c.eq(&' ') || c.eq(&'"')))
         .and_then(map)?;
 
     Decode::decode(&mut TrailingZeroInput::new(value.as_ref())).ok()
