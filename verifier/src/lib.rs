@@ -73,7 +73,7 @@ pub fn webauthn_verify(
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
     // Step 2: Concatenate authenticator data and client data hash
-    let message = vec![authenticator_data, &client_data_hash].concat();
+    let message = [authenticator_data, &client_data_hash].concat();
 
     // Step 3: Extract public key from DER format
     let public_key: PublicKey<NistP256> =

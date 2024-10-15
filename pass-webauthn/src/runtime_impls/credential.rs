@@ -13,7 +13,7 @@ where
 {
     fn from(value: Attestation<CxOf<Ch>>) -> Self {
         Device::new(Credential {
-            device_id: value.device_id().clone(),
+            device_id: *value.device_id(),
             public_key: value.public_key,
         })
     }
