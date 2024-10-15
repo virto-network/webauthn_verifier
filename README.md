@@ -1,3 +1,2 @@
-# WebAuthn by Virto
-
-WebAuthn verifiers specifically designed for working with WASM and Substrate environments.
+# webauthn_verifier
+Simple WebAuthn PoC that can be compiled to WASM
