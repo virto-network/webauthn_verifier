@@ -94,14 +94,15 @@ impl pallet_pass::BenchmarkHelper<Test> for Helper {
     }
 
     fn device_attestation(_: traits_authn::DeviceId) -> pallet_pass::DeviceAttestationOf<Test, ()> {
-        WebAuthnClient::new("https://helper.pass.int")
+        WebAuthnClient::new("https://pass_web.pass.int")
             .attestation(blake2_256(b"USER_ID"), System::block_number())
+            .1
     }
 
     fn credential(user_id: HashedUserId) -> pallet_pass::CredentialOf<Test, ()> {
         let mut client = WebAuthnClient::new("https://helper.pass.int");
-        let attestation = client.attestation(user_id, System::block_number());
-        client.credential(attestation.credential_id.as_slice(), System::block_number())
+        let (credential_id, _) = client.attestation(user_id, System::block_number());
+        client.credential(credential_id.as_slice(), System::block_number())
     }
 }
 
@@ -117,7 +118,7 @@ fn new_test_ext() -> TestExt {
     t.execute_with(|| {
         System::set_block_number(1);
     });
-    TestExt(t, WebAuthnClient::new("https://webauthn.pass.int"))
+    TestExt(t, WebAuthnClient::new("https://pass_web.pass.int"))
 }
 
 const USER: HashedUserId = s("the_user");
@@ -125,8 +126,17 @@ const USER: HashedUserId = s("the_user");
 #[test]
 fn registration_fails_if_attestation_is_invalid() {
     new_test_ext().execute_with(|client| {
-        let mut attestation = client.attestation(USER, System::block_number());
-        attestation.signature = [attestation.signature, b"Whoops!".to_vec()].concat();
+        let (_, mut attestation) = client.attestation(USER, System::block_number());
+
+        // Alters "challenge", so this will fail
+        attestation.client_data = String::from_utf8(attestation.client_data)
+            .and_then(|client_data| {
+                Ok(client_data
+                    .replace("challenge", "chellang")
+                    .as_bytes()
+                    .to_vec())
+            })
+            .expect("`client_data` is a buffer representation of a utf-8 encoded json");
 
         assert_noop!(
             Pass::register(RuntimeOrigin::root(), USER, attestation),
@@ -141,7 +151,7 @@ fn registration_works_if_attestation_is_valid() {
         assert_ok!(Pass::register(
             RuntimeOrigin::root(),
             USER,
-            client.attestation(USER, System::block_number())
+            client.attestation(USER, System::block_number()).1
         ));
     })
 }

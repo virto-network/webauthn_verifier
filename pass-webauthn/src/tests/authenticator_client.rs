@@ -7,10 +7,11 @@ use passkey_authenticator::{Authenticator, MockUserValidationMethod};
 use passkey_client::{Client, DefaultClientData};
 use passkey_types::{ctap2::Aaguid, webauthn::*, Bytes, Passkey};
 
+use sp_io::hashing::blake2_256;
 use traits_authn::{Challenger, HashedUserId};
 use url::Url;
 
-use crate::DEREncodedPublicKey;
+use crate::{AssertionMeta, DEREncodedPublicKey};
 
 use super::{BlockChallenger, Test};
 
@@ -37,7 +38,7 @@ impl WebAuthnClient {
         &mut self,
         user_id: HashedUserId,
         challenge: impl Into<Bytes>,
-    ) -> Result<(Vec<u8>, DEREncodedPublicKey), ()> {
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>, DEREncodedPublicKey), ()> {
         let creation_options = CredentialCreationOptions {
             public_key: PublicKeyCredentialCreationOptions {
                 rp: PublicKeyCredentialRpEntity {
@@ -72,7 +73,6 @@ impl WebAuthnClient {
         ))
         .map_err(|_| ())?;
 
-        // Extracting required fields
         let public_key: DEREncodedPublicKey = result
             .response
             .public_key
@@ -82,14 +82,19 @@ impl WebAuthnClient {
             })
             .ok_or(())?;
 
-        Ok((result.raw_id.into(), public_key))
+        Ok((
+            result.raw_id.into(),
+            result.response.authenticator_data.into(),
+            result.response.client_data_json.into(),
+            public_key,
+        ))
     }
 
     pub fn authenticate_credential_sync(
         &mut self,
         credential_id: impl Into<Bytes>,
         challenge: impl Into<Bytes>,
-    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), ()> {
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>), ()> {
         let request_options = CredentialRequestOptions {
             public_key: PublicKeyCredentialRequestOptions {
                 challenge: challenge.into(), // Provided as input
@@ -117,50 +122,59 @@ impl WebAuthnClient {
         .map_err(|_| ())?;
 
         // Extracting required fields
+        let user_handle = result
+            .response
+            .user_handle
+            .map(|user_handle| user_handle.into())
+            .ok_or(())?;
         let authenticator_data = result.response.authenticator_data.to_vec();
         let client_data = result.response.client_data_json.to_vec();
         let signature = result.response.signature.to_vec();
 
-        Ok((authenticator_data, client_data, signature))
+        Ok((user_handle, authenticator_data, client_data, signature))
     }
 
     pub fn attestation(
         &mut self,
         user_id: HashedUserId,
         context: BlockNumberFor<Test>,
-    ) -> crate::Attestation<BlockNumberFor<Test>> {
+    ) -> (Vec<u8>, crate::Attestation<BlockNumberFor<Test>>) {
         let challenge = BlockChallenger::generate(&context);
 
-        let (credential_id, public_key) = self
+        let (credential_id, authenticator_data, client_data, public_key) = self
             .create_credential_sync(user_id, challenge.as_slice())
             .expect("Failed creating credential");
-        let (authenticator_data, client_data, signature) = self
-            .authenticate_credential_sync(credential_id, challenge.as_slice())
-            .expect("Failed retrieving credential");
 
-        crate::Attestation {
-            credential_id,
-            context,
-            authenticator_data,
-            client_data,
-            public_key,
-            signature,
-        }
+        (
+            credential_id.clone(),
+            crate::Attestation {
+                meta: crate::AttestationMeta {
+                    device_id: blake2_256(&credential_id),
+                    context,
+                },
+                authenticator_data,
+                client_data,
+                public_key,
+            },
+        )
     }
 
     pub fn credential(
         &mut self,
         credential_id: impl Into<Bytes>,
         context: BlockNumberFor<Test>,
-    ) -> crate::Credential<BlockNumberFor<Test>> {
+    ) -> crate::Assertion<BlockNumberFor<Test>> {
         let challenge = BlockChallenger::generate(&context);
 
-        let (authenticator_data, client_data, signature) = self
+        let (user_handle, authenticator_data, client_data, signature) = self
             .authenticate_credential_sync(credential_id, challenge.as_slice())
             .expect("Failed retrieving credential");
 
-        crate::Credential {
-            context,
+        crate::Assertion {
+            meta: AssertionMeta {
+                user_id: Decode::decode(&mut TrailingZeroInput::new(&user_handle)).expect("`user_handle` corresponds to the `user_id` inserted when creating credential; qed"),
+                context,
+            },
             authenticator_data,
             client_data,
             signature,
