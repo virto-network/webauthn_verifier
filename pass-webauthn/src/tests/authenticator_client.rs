@@ -9,7 +9,7 @@ use passkey_types::{ctap2::Aaguid, webauthn::*, Bytes, Passkey};
 
 use sp_io::hashing::blake2_256;
 use traits_authn::{Challenger, HashedUserId};
-use url::Url;
+use url_evil::Url;
 
 use crate::{AssertionMeta, DEREncodedPublicKey};
 

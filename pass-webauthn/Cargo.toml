@@ -26,6 +26,7 @@ passkey-client.workspace = true
 passkey-types.workspace = true
 public-suffix.workspace = true
 sp-io.workspace = true
+url-evil.workspace = true
 
 [features]
 default = ["std", "runtime"]

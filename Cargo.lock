@@ -2032,6 +2032,7 @@ dependencies = [
  "scale-info",
  "simple-base64",
  "sp-io",
+ "url 2.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 2.5.2 (git+https://github.com/servo/rust-url)",
  "verifier",
 ]
