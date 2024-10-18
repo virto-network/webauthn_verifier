@@ -25,7 +25,7 @@ passkey-types = { version = "0.3.0", default-features = false, features = [
 public-suffix = "0.1"
 rand = "0.8.5"
 sha2 = { version = "0.10.8", default-features = false }
-url = "2.5.2"
+url = { git = "https://github.com/servo/rust-url", default-features = false }
 
 # FRAME
 codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [

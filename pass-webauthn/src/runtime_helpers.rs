@@ -1,5 +1,6 @@
 use codec::Decode;
 use frame_support::sp_runtime::traits::TrailingZeroInput;
+use scale_info::prelude::{string::String, vec::Vec};
 
 use traits_authn::{AuthorityId, Challenge};
 

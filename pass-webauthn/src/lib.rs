@@ -1,15 +1,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
+extern crate alloc;
+
+use alloc::vec::Vec;
+use codec::{Decode, Encode};
 use traits_authn::{
     util::{Auth, Dev},
     Challenger, DeviceId, HashedUserId,
 };
 
+#[cfg(any(feature = "runtime", test))]
+use ::{codec::MaxEncodedLen, scale_info::TypeInfo};
+
 type CxOf<Ch> = <Ch as Challenger>::Context;
 
-#[cfg(any(feature = "runtime", test))]
 mod runtime_helpers;
 #[cfg(any(feature = "runtime", test))]
 pub mod runtime_impls;
