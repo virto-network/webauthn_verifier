@@ -894,7 +894,7 @@ dependencies = [
 [[package]]
 name = "fc-pallet-pass"
 version = "1.0.0"
-source = "git+https://github.com/virto-network/frame-contrib#bef33bbafecc760324a852381f686a898d00472f"
+source = "git+https://github.com/virto-network/frame-contrib#4f34f38ff48dd2a06e2fb594e7d5045085a37a1a"
 dependencies = [
  "fc-traits-authn",
  "frame-benchmarking",
@@ -912,7 +912,7 @@ dependencies = [
 [[package]]
 name = "fc-traits-authn"
 version = "0.1.0"
-source = "git+https://github.com/virto-network/frame-contrib#bef33bbafecc760324a852381f686a898d00472f"
+source = "git+https://github.com/virto-network/frame-contrib#4f34f38ff48dd2a06e2fb594e7d5045085a37a1a"
 dependencies = [
  "fc-traits-authn-proc",
  "frame-support",
@@ -923,7 +923,7 @@ dependencies = [
 [[package]]
 name = "fc-traits-authn-proc"
 version = "0.1.0"
-source = "git+https://github.com/virto-network/frame-contrib#bef33bbafecc760324a852381f686a898d00472f"
+source = "git+https://github.com/virto-network/frame-contrib#4f34f38ff48dd2a06e2fb594e7d5045085a37a1a"
 dependencies = [
  "quote",
  "syn 2.0.79",
@@ -1572,9 +1572,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.159"
+version = "0.2.161"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "561d97a539a36e26a9a5fad1ea11a3039a67714694aaa379433e580854bc3dc5"
+checksum = "8e9489c2807c139ffd9c1794f4af0ebe86a828db53ecdc7fea2111d0fed085d1"
 
 [[package]]
 name = "libsecp256k1"
@@ -2323,9 +2323,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.87"
+version = "1.0.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3e4daa0dcf6feba26f985457cdf104d4b4256fc5a09547140f3631bb076b19a"
+checksum = "7c3a7fc5db1e57d5a779a352c8cdb57b29aa4c40cc69c3a68a7fedc815fbf2f9"
 dependencies = [
  "unicode-ident",
 ]
@@ -2662,9 +2662,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.128"
+version = "1.0.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ff5456707a1de34e7e37f2a6fd3d3f808c318259cbd01ab6377795054b483d8"
+checksum = "6dbcf9b78a125ee667ae19388837dd12294b858d101fdd393cb9d5501ef09eb2"
 dependencies = [
  "indexmap",
  "itoa",
@@ -3667,9 +3667,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "w3f-bls"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc6114fd2fad99890d3990c1df1a2d9cb3e76670f006e3255fa448cbfd1faea9"
+checksum = "6a48c48447120a85b0bdb897ba9426a7aa15b4229498a2e19103e8c9368dd4b2"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381",
