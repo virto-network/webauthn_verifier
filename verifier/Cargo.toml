@@ -7,8 +7,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-p256.workspace = true
-p256.features = ["ecdsa", "pkcs8"]
+p256 = { workspace = true, features = ["ecdsa", "pkcs8"] }
 sha2.workspace = true
 
 [dev-dependencies]
@@ -18,4 +17,4 @@ rand.workspace = true
 
 [features]
 default = ["std"]
-std = ["coset/std", "p256/std", "sha2/std", "rand/std"]
+std = ["coset/std", "p256/std", "rand/std", "sha2/std"]
