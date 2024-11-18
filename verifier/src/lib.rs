@@ -78,18 +78,26 @@ pub fn webauthn_verify(
     let client_data_hash: [u8; 32] = Sha256::digest(client_data_json).into();
 
     // Step 2: Concatenate authenticator data and client data hash
+    log::trace!(target: LOG_TARGET, "Composing verify message");
     let message = [authenticator_data, &client_data_hash].concat();
 
     // Step 3: Extract public key from DER format
+    log::trace!(target: LOG_TARGET, "Obtaining public key");
     let public_key: PublicKey<NistP256> =
-        DecodePublicKey::from_public_key_der(credential_public_key_der)
-            .map_err(|_| VerifyError::ExtractPublicKey)?;
+        DecodePublicKey::from_public_key_der(credential_public_key_der).map_err(|e| {
+            log::error!(target: LOG_TARGET, "WebAuthn verification failed with ExtractPublicKey error, reason={}", e);
+            VerifyError::ExtractPublicKey
+        })?;
 
     let verifying_key = VerifyingKey::from(public_key);
 
     // Step 4: Parse the DER signature
+    log::trace!(target: LOG_TARGET, "Parsing signature");
     let signature =
-        DerSignature::try_from(signature_der).map_err(|_| VerifyError::ParseSignature)?;
+        DerSignature::try_from(signature_der).map_err(|e| {
+            log::error!(target: LOG_TARGET, "WebAuthn verification failed with ParseSignature error, reason={}", e);
+            VerifyError::ParseSignature
+        })?;
 
     log::trace!(
         target: LOG_TARGET,
@@ -103,7 +111,7 @@ pub fn webauthn_verify(
         .verify(&message, &signature)
         .map(|_| ())
         .map_err(|e| {
-            log::error!(target: LOG_TARGET, "Verification webauthn failed, reason={}", e);
+            log::error!(target: LOG_TARGET, "WebAuthn verification failed with VerifySignature error, reason={}", e);
             VerifyError::VerifySignature
         })
 }
