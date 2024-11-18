@@ -92,6 +92,7 @@ pub fn webauthn_verify(
         DerSignature::try_from(signature_der).map_err(|_| VerifyError::ParseSignature)?;
 
     log::trace!(
+        target: LOG_TARGET,
         "Run WebAuthn verify_signature: message={:?}, public_key={:?}, signature={:?}",
         &message,
         &public_key,
@@ -101,5 +102,8 @@ pub fn webauthn_verify(
     verifying_key
         .verify(&message, &signature)
         .map(|_| ())
-        .map_err(|_| VerifyError::VerifySignature)
+        .map_err(|e| {
+            log::error!(target: LOG_TARGET, "Verification webauthn failed, reason={}", e);
+            VerifyError::VerifySignature
+        })
 }
