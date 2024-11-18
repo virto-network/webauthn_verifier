@@ -66,6 +66,8 @@ pub enum VerifyError {
     VerifySignature,
 }
 
+const LOG_TARGET: &str = "verifier::verify_signature";
+
 pub fn webauthn_verify(
     authenticator_data: &[u8],
     client_data_json: &[u8],
@@ -89,6 +91,12 @@ pub fn webauthn_verify(
     let signature =
         DerSignature::try_from(signature_der).map_err(|_| VerifyError::ParseSignature)?;
 
+    log::trace!(
+        "Run WebAuthn verify_signature: message={:?}, public_key={:?}, signature={:?}",
+        &message,
+        &public_key,
+        &signature
+    );
     // Step 5: Verify the signature
     verifying_key
         .verify(&message, &signature)

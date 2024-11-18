@@ -3861,6 +3861,7 @@ name = "verifier"
 version = "0.1.0"
 dependencies = [
  "coset",
+ "log",
  "p256",
  "passkey-authenticator",
  "rand",
