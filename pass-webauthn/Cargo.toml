@@ -10,6 +10,7 @@ version = "0.1.0"
 base64 = { workspace = true, features = ["alloc"] }
 codec.workspace = true
 frame-support = { workspace = true, optional = true }
+log.workspace = true
 scale-info.workspace = true
 traits-authn.workspace = true
 url.workspace = true

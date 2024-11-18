@@ -21,6 +21,11 @@ where
 
 impl<Cx> VerifyCredential<Assertion<Cx>> for Credential {
     fn verify(&self, credential: &Assertion<Cx>) -> Option<()> {
+        log::trace!(
+            "Verifying credentials with public key {:?} and signature {:?}",
+            &self.public_key,
+            &credential.signature
+        );
         webauthn_verify(
             &credential.authenticator_data,
             &credential.client_data,

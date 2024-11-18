@@ -12,6 +12,7 @@ coset = { version = "0.3.0", default-features = false }
 futures = { version = "0.3.31", default-features = false, features = [
   "executor",
 ] }
+log = { version = "0.4.22", default-features = false }
 p256 = { version = "0.13.2", default-features = false }
 passkey-authenticator = { version = "0.3.0", default-features = false, features = [
   "testable",
