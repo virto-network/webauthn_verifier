@@ -28,7 +28,7 @@ where
     /// WebAuthn RpID should be a subdomain of the origin that is calling the create credentials request.
     /// Therefore, `authority` should be a URL-safe name, so it can be allocated in a valid URL domain.
     fn authority(&self) -> AuthorityId {
-        find_authority_id_from_client_data(self.client_data.clone()).unwrap_or_default()
+        self.meta.authority_id
     }
 
     fn device_id(&self) -> &DeviceId {

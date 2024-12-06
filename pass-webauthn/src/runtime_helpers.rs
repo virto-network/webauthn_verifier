@@ -2,24 +2,13 @@ use codec::Decode;
 use frame_support::sp_runtime::traits::TrailingZeroInput;
 use scale_info::prelude::{string::String, vec::Vec};
 
-use traits_authn::{AuthorityId, Challenge};
+use traits_authn::Challenge;
 
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
-use url::Url;
 
 pub fn find_challenge_from_client_data(client_data: Vec<u8>) -> Option<Challenge> {
     get_from_json_then_map(client_data, "challenge", |challenge| {
         base64::decode_engine(challenge.as_bytes(), &BASE64_URL_SAFE_NO_PAD).ok()
-    })
-}
-
-pub fn find_authority_id_from_client_data(client_data: Vec<u8>) -> Option<AuthorityId> {
-    get_from_json_then_map(client_data, "origin", |origin| {
-        Url::parse(&origin)
-            .ok()?
-            .domain()?
-            .split_once(".")
-            .map(|(authority_id, _)| authority_id.as_bytes().to_vec())
     })
 }
 

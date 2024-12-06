@@ -8,7 +8,7 @@ use passkey_client::{Client, DefaultClientData};
 use passkey_types::{ctap2::Aaguid, webauthn::*, Bytes, Passkey};
 
 use sp_io::hashing::blake2_256;
-use traits_authn::{Challenger, HashedUserId};
+use traits_authn::{AuthorityId, Challenger, HashedUserId};
 use url_evil::Url;
 
 use crate::{AssertionMeta, DEREncodedPublicKey};
@@ -138,6 +138,7 @@ impl WebAuthnClient {
         &mut self,
         user_id: HashedUserId,
         context: BlockNumberFor<Test>,
+        authority_id: AuthorityId,
     ) -> (Vec<u8>, crate::Attestation<BlockNumberFor<Test>>) {
         let challenge = BlockChallenger::generate(&context);
 
@@ -149,6 +150,7 @@ impl WebAuthnClient {
             credential_id.clone(),
             crate::Attestation {
                 meta: crate::AttestationMeta {
+                    authority_id,
                     device_id: blake2_256(&credential_id),
                     context,
                 },
@@ -163,6 +165,7 @@ impl WebAuthnClient {
         &mut self,
         credential_id: impl Into<Bytes>,
         context: BlockNumberFor<Test>,
+        authority_id: AuthorityId,
     ) -> crate::Assertion<BlockNumberFor<Test>> {
         let challenge = BlockChallenger::generate(&context);
 
@@ -172,6 +175,7 @@ impl WebAuthnClient {
 
         crate::Assertion {
             meta: AssertionMeta {
+                authority_id,
                 user_id: Decode::decode(&mut TrailingZeroInput::new(&user_handle)).expect("`user_handle` corresponds to the `user_id` inserted when creating credential; qed"),
                 context,
             },

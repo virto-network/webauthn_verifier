@@ -23,7 +23,7 @@ where
     }
 
     fn authority(&self) -> AuthorityId {
-        find_authority_id_from_client_data(self.client_data.clone()).unwrap_or_default()
+        self.meta.authority_id
     }
 
     fn user_id(&self) -> HashedUserId {

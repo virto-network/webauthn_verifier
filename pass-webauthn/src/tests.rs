@@ -7,7 +7,6 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, Config, EnsureRootWithSuccess};
-use sp_io::hashing::blake2_256;
 use traits_authn::{util::AuthorityFromPalletId, Challenger, HashedUserId};
 
 use crate::Authenticator;
@@ -49,7 +48,8 @@ impl frame_system::Config for Test {
     type AccountData = pallet_balances::AccountData<AccountId>;
 }
 
-#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig)]
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig as pallet_balances::DefaultConfig
+)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
@@ -86,6 +86,8 @@ impl pallet_pass::Config for Test {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
+use sp_io::hashing::blake2_256;
+#[cfg(feature = "runtime-benchmarks")]
 pub struct Helper;
 #[cfg(feature = "runtime-benchmarks")]
 impl pallet_pass::BenchmarkHelper<Test> for Helper {
@@ -95,14 +97,23 @@ impl pallet_pass::BenchmarkHelper<Test> for Helper {
 
     fn device_attestation(_: traits_authn::DeviceId) -> pallet_pass::DeviceAttestationOf<Test, ()> {
         WebAuthnClient::new("https://pass_web.pass.int", 1)
-            .attestation(blake2_256(b"USER_ID"), System::block_number())
+            .attestation(
+                blake2_256(b"USER_ID"),
+                System::block_number(),
+                AuthorityId::get(),
+            )
             .1
     }
 
     fn credential(user_id: HashedUserId) -> pallet_pass::CredentialOf<Test, ()> {
         let mut client = WebAuthnClient::new("https://helper.pass.int", 2);
-        let (credential_id, _) = client.attestation(user_id, System::block_number());
-        client.assertion(credential_id.as_slice(), System::block_number())
+        let (credential_id, _) =
+            client.attestation(user_id, System::block_number(), AuthorityId::get());
+        client.assertion(
+            credential_id.as_slice(),
+            System::block_number(),
+            AuthorityId::get(),
+        )
     }
 }
 
@@ -123,21 +134,24 @@ fn new_test_ext(times: usize) -> TestExt {
 
 const USER: HashedUserId = s("the_user");
 
+use traits_authn::composite_prelude::Get;
+
 mod attestation {
     use super::*;
 
     #[test]
     fn registration_fails_if_attestation_is_invalid() {
         new_test_ext(1).execute_with(|client| {
-            let (_, mut attestation) = client.attestation(USER, System::block_number());
+            let (_, mut attestation) =
+                client.attestation(USER, System::block_number(), AuthorityId::get());
 
             // Alters "challenge", so this will fail
             attestation.client_data = String::from_utf8(attestation.client_data)
-                .and_then(|client_data| {
-                    Ok(client_data
+                .map(|client_data| {
+                    client_data
                         .replace("challenge", "chellang")
                         .as_bytes()
-                        .to_vec())
+                        .to_vec()
                 })
                 .expect("`client_data` is a buffer representation of a utf-8 encoded json");
 
@@ -154,7 +168,9 @@ mod attestation {
             assert_ok!(Pass::register(
                 RuntimeOrigin::root(),
                 USER,
-                client.attestation(USER, System::block_number()).1
+                client
+                    .attestation(USER, System::block_number(), AuthorityId::get())
+                    .1
             ));
         })
     }
@@ -168,7 +184,8 @@ mod assertion {
     #[test]
     fn authentication_fails_if_credentials_are_invalid() {
         new_test_ext(2).execute_with(|client| {
-            let (credential_id, attestation) = client.attestation(USER, System::block_number());
+            let (credential_id, attestation) =
+                client.attestation(USER, System::block_number(), AuthorityId::get());
 
             assert_ok!(Pass::register(
                 RuntimeOrigin::root(),
@@ -176,7 +193,8 @@ mod assertion {
                 attestation.clone()
             ));
 
-            let mut assertion = client.assertion(credential_id, System::block_number());
+            let mut assertion =
+                client.assertion(credential_id, System::block_number(), AuthorityId::get());
             assertion.signature = [assertion.signature, b"Whoops".to_vec()].concat();
 
             assert_noop!(
@@ -194,7 +212,8 @@ mod assertion {
     #[test]
     fn authentication_works_if_credentials_are_valid() {
         new_test_ext(2).execute_with(|client| {
-            let (credential_id, attestation) = client.attestation(USER, System::block_number());
+            let (credential_id, attestation) =
+                client.attestation(USER, System::block_number(), AuthorityId::get());
 
             assert_ok!(Pass::register(
                 RuntimeOrigin::root(),
@@ -205,7 +224,7 @@ mod assertion {
             assert_ok!(Pass::authenticate(
                 RuntimeOrigin::signed(1),
                 *(attestation.device_id()),
-                client.assertion(credential_id, System::block_number()),
+                client.assertion(credential_id, System::block_number(), AuthorityId::get()),
                 None
             ));
         })

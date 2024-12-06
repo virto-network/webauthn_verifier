@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use traits_authn::{
     util::{Auth, Dev},
-    Challenger, DeviceId, HashedUserId,
+    AuthorityId, Challenger, DeviceId, HashedUserId,
 };
 
 #[cfg(any(feature = "runtime", test))]
@@ -38,6 +38,7 @@ pub struct Credential {
 
 #[derive(Encode, Decode, TypeInfo, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct AttestationMeta<Cx> {
+    pub(crate) authority_id: AuthorityId,
     pub(crate) device_id: DeviceId,
     pub(crate) context: Cx,
 }
@@ -52,6 +53,7 @@ pub struct Attestation<Cx> {
 
 #[derive(Encode, Decode, TypeInfo, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct AssertionMeta<Cx> {
+    pub(crate) authority_id: AuthorityId,
     pub(crate) user_id: HashedUserId,
     pub(crate) context: Cx,
 }
